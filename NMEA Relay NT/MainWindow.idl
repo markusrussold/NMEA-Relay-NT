@@ -1,0 +1,8 @@
+namespace NMEA_Relay_NT
+{
+    [default_interface]
+    runtimeclass MainWindow : Microsoft.UI.Xaml.Window
+    {
+        MainWindow();
+    }
+}

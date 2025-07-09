@@ -7,131 +7,329 @@
     mc:Ignorable="d"
     Title="NMEA Relay NT">
 
-    <Grid Margin="20">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <!-- MenuBar -->
+            <ColumnDefinition Width="*"/>
+            <!-- Main content -->
+        </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
+            <!-- Main content area -->
         </Grid.RowDefinitions>
 
-        <!-- Titel und Copyright -->
-        <TextBlock Text="Copyright by Markus Russold - Version 1.0.0 (Build 361)"
-                   HorizontalAlignment="Right"
-                   FontSize="12"
-                   Foreground="Gray"/>
+        <!-- MenuBar links -->
+        <MenuBar Grid.Column="0" Grid.Row="0" Background="Gray">
+            <MenuBarItem Title="Men&#252;">
+                <MenuFlyoutItem Text="Konfig-Pfad &#246;ffnen" Click="OpenConfigPath_Click"/>
+                <MenuFlyoutItem Text="Version und Copyrights" Click="Version_Click"/>
+                <MenuFlyoutItem Text="Beenden" Click="Exit_Click"/>
+            </MenuBarItem>
+        </MenuBar>
 
-        <!-- Hauptbereich -->
-        <Grid Grid.Row="1" Margin="0,20,0,20">
+        <!-- Dein kompletter Inhalt, sauber zugeordnet -->
+        <Grid Grid.Column="1" Grid.Row="0" Margin="20">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="2*"/>
-                <ColumnDefinition Width="3*"/>
+                <ColumnDefinition Width="320"/>
+                <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Linker Block: Positionsdaten -->
-            <StackPanel Grid.Column="0" Spacing="8">
-                <TextBlock Text="LAT:"/>
-                <TextBlock Text="LON:"/>
-                <TextBlock Text="HDOP:"/>
-                <TextBlock Text="UTC:"/>
-                <TextBlock Text="ALT:"/>
-                <TextBlock Text="FIX:"/>
-                <TextBlock Text="#-SAT:"/>
-                <TextBlock Text="SOG:"/>
-                <TextBlock Text="COG:"/>
+            <!-- Copyright -->
+            <TextBlock Grid.ColumnSpan="2"
+                       Text="Copyright by Markus Russold - Version 1.0.0 (Build 361)"
+                       HorizontalAlignment="Right"
+                       FontSize="12"
+                       Foreground="Gray"/>
 
-                <StackPanel Orientation="Horizontal" Spacing="20">
-                    <TextBlock Text="Queue #: 0"/>
-                    <TextBlock Text="Queue B: 0"/>
+            <!-- Position bar -->
+            <Border x:Name="PositionBar"
+                    Grid.Row="1"
+                    Grid.ColumnSpan="2"
+                    Margin="0,10,0,10"
+                    Background="LightGreen"
+                    CornerRadius="4"
+                    Padding="8"
+                    Tapped="PositionBar_Tapped">
+                <TextBlock x:Name="PositionBarText"
+                           Text=""
+                           HorizontalAlignment="Center"
+                           FontWeight="Bold"
+                           Foreground="Black"/>
+            </Border>
+
+            <!-- Left gauges -->
+            <StackPanel Grid.Row="2"
+                        Grid.Column="0"
+                        Margin="0,20,20,0"
+                        HorizontalAlignment="Center"
+                        Spacing="30">
+
+                <!-- SOG -->
+                <StackPanel HorizontalAlignment="Center">
+                    <TextBlock Text="SOG (knots):"
+                               FontWeight="Bold"
+                               Margin="0,0,0,8"
+                               HorizontalAlignment="Center"/>
+                    <StackPanel>
+                        <ProgressBar x:Name="SogBar"
+                                     Width="200"
+                                     Minimum="0" Maximum="12"
+                                     Value="0"/>
+                        <Grid Width="200" Margin="0,2,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="0"
+                                       Grid.Column="0"
+                                       FontSize="10"
+                                       HorizontalAlignment="Left"/>
+                            <TextBlock Text="12"
+                                       Grid.Column="2"
+                                       FontSize="10"
+                                       HorizontalAlignment="Right"/>
+                        </Grid>
+                    </StackPanel>
+                    <TextBlock x:Name="SogValueText"
+                               Text="0.0 kn"
+                               FontSize="16"
+                               FontWeight="Bold"
+                               Margin="0,8,0,0"
+                               HorizontalAlignment="Center"/>
                 </StackPanel>
 
-                <TextBlock Text="Log:"/>
-                <TextBlock Text="C:\Users\russold\AppData\Roaming\NMEA Relay\NMEARelayLog.txt"
-                           TextWrapping="Wrap"
-                           FontSize="10"/>
+                <!-- COG -->
+                <StackPanel HorizontalAlignment="Center">
+                    <TextBlock Text="COG:"
+                               FontWeight="Bold"
+                               Margin="0,20,0,8"
+                               HorizontalAlignment="Center"/>
+                    <Grid Width="200" Height="200">
+                        <Ellipse Stroke="Black" StrokeThickness="2"/>
+                        <Line X1="100" Y1="0" X2="100" Y2="20"
+                              Stroke="Black" StrokeThickness="2"/>
+                        <Polygon x:Name="CompassArrow"
+                                 Points="100,40 90,100 110,100"
+                                 Fill="LightBlue"
+                                 RenderTransformOrigin="0.5,0.5">
+                            <Polygon.RenderTransform>
+                                <RotateTransform x:Name="CompassRotation" Angle="0"/>
+                            </Polygon.RenderTransform>
+                        </Polygon>
+                    </Grid>
+                </StackPanel>
             </StackPanel>
 
-            <!-- Rechter Block: Status, Buttons und Nachricht -->
-            <StackPanel Grid.Column="1" Spacing="12">
+            <!-- Right controls -->
+            <StackPanel Grid.Row="2"
+                        Grid.Column="1"
+                        Spacing="12">
 
-                <!-- Status ComboBox -->
-                <ComboBox Header="Status auswählen">
-                    <ComboBoxItem Content="Unterwegs mit Maschinenantrieb"/>
-                    <ComboBoxItem Content="Vor Anker"/>
-                    <ComboBoxItem Content="Manövrierunfähig"/>
-                    <ComboBoxItem Content="Beschränkt manövrierfähig"/>
-                    <ComboBoxItem Content="Tiefgang behindert"/>
-                    <ComboBoxItem Content="Festgemacht"/>
-                    <ComboBoxItem Content="Auf Grund"/>
-                    <ComboBoxItem Content="Mit Fischerei beschäftigt"/>
-                    <ComboBoxItem Content="Unter Segeln"/>
-                </ComboBox>
+                <!-- Status buttons -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <!-- Links: Symbolbuttons -->
+                        <ColumnDefinition Width="Auto"/>
+                        <!-- Rechts: TestButton -->
+                    </Grid.ColumnDefinitions>
 
-                <StackPanel Orientation="Horizontal" Spacing="12">
-                    <Button Content="In Fahrt unter Segel" Width="160"/>
-                    <Button Content="Motorfahrt" Width="100"/>
-                </StackPanel>
+                    <!-- Symbolbuttons links -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                        <Button x:Name="SailButton" Click="SailButton_Click"
+                Width="48" Height="48"
+                Background="White"
+                BorderThickness="0"
+                Padding="0"
+                ToolTipService.ToolTip="Segeln">
+                            <Image Source="Assets/sailboat.png" Width="36" Height="36" Stretch="Uniform"/>
+                        </Button>
 
-                <!-- Nachricht -->
+                        <Button x:Name="EngineButton" Click="EngineButton_Click"
+                Width="48" Height="48"
+                Background="White"
+                BorderThickness="0"
+                Padding="0"
+                ToolTipService.ToolTip="Maschinenantrieb">
+                            <Image Source="Assets/engine.png" Width="36" Height="36" Stretch="Uniform"/>
+                        </Button>
+
+                        <Button x:Name="SailAndEngineButton" Click="SailAndEngineButton_Click"
+                Width="48" Height="48"
+                Background="White"
+                BorderThickness="0"
+                Padding="0"
+                ToolTipService.ToolTip="Segel und Motorantrieb">
+                            <Image Source="Assets/sail_and_engine_combined.png" Width="36" Height="36" Stretch="Uniform"/>
+                        </Button>
+
+                        <Button x:Name="AnchorButton" Click="AnchorButton_Click"
+                Width="48" Height="48"
+                Background="White"
+                BorderThickness="0"
+                Padding="0"
+                ToolTipService.ToolTip="Ankern">
+                            <Image Source="Assets/anchor.png" Width="36" Height="36" Stretch="Uniform"/>
+                        </Button>
+
+                        <Button x:Name="DockedButton" Click="DockedButton_Click"
+                Width="48" Height="48"
+                Background="White"
+                BorderThickness="0"
+                Padding="0"
+                ToolTipService.ToolTip="Festgemacht">
+                            <Image Source="Assets/line.png" Width="36" Height="36" Stretch="Uniform"/>
+                        </Button>
+                    </StackPanel>
+
+                    <!-- TestButton rechts -->
+                    <Button Grid.Column="1" x:Name="TestButton" Click="TestButton_Click"
+                        Width="80" Height="48"
+                        Background="LightGray"
+                        BorderThickness="1"
+                        Padding="0"
+                        Content="Test"
+                        Foreground="Black"
+                        VerticalAlignment="Center"/>
+                </Grid>
+
+
                 <TextBlock Text="Nachricht:"/>
-                <TextBox Height="40"/>
+                <TextBox x:Name="MessageBox"
+                         Height="40"
+                         KeyDown="MessageBox_KeyDown"/>
 
-                <!-- Konfiguration (statt GroupBox) -->
+                <!-- Konfiguration -->
                 <TextBlock Text="Konfiguration"
                            FontWeight="Bold"
                            Margin="0,12,0,4"/>
+
                 <Border BorderBrush="Gray" BorderThickness="1" Padding="8">
-                    <StackPanel Spacing="8">
-                        <StackPanel Orientation="Horizontal" Spacing="12">
-                            <TextBlock Text="Bootsname:" Width="120"/>
-                            <TextBox Width="200" Text="Sea Pearl Super"/>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Spacing="12">
-                            <TextBlock Text="Ziel:" Width="120"/>
-                            <TextBox Width="200" Text="Weit Weit Weg"/>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Spacing="12">
-                            <TextBlock Text="Callsign:" Width="120"/>
-                            <TextBox Width="200" Text="NotUsed"/>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Spacing="12">
-                            <TextBlock Text="Server-Name:" Width="120"/>
-                            <TextBox Width="200" Text="mrussold.com"/>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Spacing="12">
-                            <TextBlock Text="Server-Port:" Width="120"/>
-                            <TextBox Width="80" Text="1234"/>
-                            <TextBlock Text="Key:"/>
-                            <TextBox Width="100" Text="seapearl4519"/>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Spacing="12">
-                            <TextBlock Text="OpenCPN:" Width="120"/>
-                            <TextBox Width="150" Text="192.168.0.220"/>
-                            <TextBlock Text="Port:"/>
-                            <TextBox Width="80" Text="2947"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="1.2*" />
+                            <ColumnDefinition Width="1.8*" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Left Column -->
+                        <StackPanel Spacing="8" Grid.Column="0">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <TextBlock Text="Bootsname:" Width="90" VerticalAlignment="Center"/>
+                                <TextBox x:Name="BoatNameTextBox"
+                             Tag="BoatName"
+                             Width="200"
+                             TextChanged="ConfigTextBox_TextChanged"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <TextBlock Text="Ziel:" Width="90" VerticalAlignment="Center"/>
+                                <TextBox x:Name="DestinationTextBox"
+                             Tag="Destination"
+                             Width="200"
+                             TextChanged="ConfigTextBox_TextChanged"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <TextBlock Text="Callsign:" Width="90" VerticalAlignment="Center"/>
+                                <TextBox x:Name="CallsignTextBox"
+                             Tag="Callsign"
+                             Width="200"
+                             TextChanged="ConfigTextBox_TextChanged"/>
+                            </StackPanel>
                         </StackPanel>
 
-                        <StackPanel Orientation="Horizontal" Spacing="12">
-                            <Button Content="Anwenden" Width="100"/>
-                            <Button Content="Exit" Width="100"/>
+                        <!-- Right Column -->
+                        <StackPanel Grid.Column="1">
+                            <StackPanel Orientation="Horizontal" Spacing="12" Margin="10,0,0,12">
+                                <TextBlock Text="Server-Name:" Width="90" VerticalAlignment="Center"/>
+                                <TextBox x:Name="ServerNameTextBox"
+                             Tag="ServerName"
+                             Width="200"
+                             TextChanged="ConfigTextBox_TextChanged"/>
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" Spacing="12" Margin="10,0,0,12">
+                                <TextBlock Text="Server-Port:" Width="90" VerticalAlignment="Center"/>
+                                <TextBox x:Name="ServerPortTextBox"
+                             Tag="ServerPort"
+                             Width="80"
+                             TextChanged="ConfigTextBox_TextChanged"/>
+                                <TextBlock Text="Key:" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                <TextBox x:Name="KeyTextBox"
+                             Tag="Key"
+                             Width="120"
+                             TextChanged="ConfigTextBox_TextChanged"/>
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" Spacing="12" Margin="10,0,0,0">
+                                <TextBlock Text="OpenCPN:" Width="90" VerticalAlignment="Center"/>
+                                <TextBox x:Name="OpenCPNTextBox"
+                             Tag="OpenCPN"
+                             Width="150"
+                             TextChanged="ConfigTextBox_TextChanged"/>
+                                <TextBlock Text="Port:" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                <TextBox x:Name="OpenCPNPortTextBox"
+                             Tag="OpenCPNPort"
+                             Width="80"
+                             TextChanged="ConfigTextBox_TextChanged"/>
+                            </StackPanel>
                         </StackPanel>
-                    </StackPanel>
+                    </Grid>
                 </Border>
 
-                <!-- Status-Indikatoren -->
-                <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right">
-                    <Border Background="Red" Width="40" Height="20">
-                        <TextBlock Text="GPS" Foreground="White" HorizontalAlignment="Center"/>
-                    </Border>
-                    <Border Background="Green" Width="40" Height="20">
-                        <TextBlock Text="SRV" Foreground="White" HorizontalAlignment="Center"/>
-                    </Border>
-                    <Border Background="Gray" Width="40" Height="20">
-                        <TextBlock Text="MSG" Foreground="White" HorizontalAlignment="Center"/>
+            </StackPanel>
+
+            <!-- Footer -->
+            <Grid Grid.Row="3" Grid.ColumnSpan="2" Margin="0,10,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <Border x:Name="StatusBarFooter"
+                        Grid.Column="0"
+                        Background="DarkGray"
+                        Padding="8"
+                        Tapped="StatusBarFooter_Tapped">
+                    <TextBlock x:Name="StatusBarFooterText"
+                               Text="Ready"
+                               Foreground="Black"/>
+                </Border>
+
+                <StackPanel Grid.Column="1"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Stretch"
+                            HorizontalAlignment="Right"
+                            Margin="12,0,0,0"
+                            Spacing="12">
+
+                    <TextBlock x:Name="FooterCounter"
+                               Text="0"
+                               Width="32"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               Foreground="White"
+                               FontWeight="Bold"/>
+
+                    <Border x:Name="SRVIndicator"
+                            Background="Green"
+                            Width="40"
+                            VerticalAlignment="Stretch"
+                            HorizontalAlignment="Center">
+                        <TextBlock Text="SRV"
+                                   Foreground="White"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"/>
                     </Border>
                 </StackPanel>
+            </Grid>
 
-            </StackPanel>
         </Grid>
-
     </Grid>
 </Window>

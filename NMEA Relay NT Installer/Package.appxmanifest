@@ -10,7 +10,7 @@
   <Identity
     Name="8d5b7424-465e-4a6d-a06d-a81d20191218"
     Publisher="CN=Markus Russold"
-    Version="1.0.0.0" />
+    Version="1.5.2.0" />
 
   <Properties>
     <DisplayName>NMEA Relay NT Installer</DisplayName>

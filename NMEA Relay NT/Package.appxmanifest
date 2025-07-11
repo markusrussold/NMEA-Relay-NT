@@ -9,8 +9,8 @@
 
   <Identity
     Name="5a453c35-0e0e-4d31-ae5f-e06cb32d0261"
-    Publisher="CN=russold"
-    Version="1.0.0.0" />
+    Publisher="CN=Markus Russold"
+    Version="1.15.2.0" />
 
   <mp:PhoneIdentity PhoneProductId="5a453c35-0e0e-4d31-ae5f-e06cb32d0261" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 

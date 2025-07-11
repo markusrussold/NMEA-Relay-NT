@@ -15,13 +15,21 @@
 #include <string>
 #include <winrt/Windows.Storage.h>
 #include <shellapi.h> 
+#include "HelperFunctions.h"
+#include "Globals.h"
+#include <winrt/Windows.UI.h>
+#include <winrt/Windows.UI.Xaml.Media.h>
+#include <sstream>
+#include <iomanip>
+#include <winrt/Windows.UI.Popups.h>
+#include "version.h"
 
+using namespace winrt;
 using namespace winrt::Microsoft::UI::Xaml;
 using namespace winrt::Microsoft::UI::Xaml::Controls;
 using namespace winrt::Microsoft::UI::Xaml::Media;
 using namespace winrt::Microsoft::UI;
-
-std::string getRoamingAppDataFolder();
+using namespace winrt::Windows::UI::Popups;
 
 namespace winrt::NMEA_Relay_NT::implementation
 {
@@ -57,7 +65,7 @@ namespace winrt::NMEA_Relay_NT::implementation
 
         PositionBar().Background(SolidColorBrush(Colors::LightCoral()));
         PositionBarText().Text(L"Keine gültigen Positionsdaten");
-        CompassRotation().Angle(0);
+        ShipRotation().Angle(0);
         SogBar().Value(0.0);
         SogValueText().Text(L"");
         FooterCounter().Text(L"0");
@@ -123,18 +131,53 @@ namespace winrt::NMEA_Relay_NT::implementation
     {
         using namespace winrt::Microsoft::UI::Xaml::Controls;
 
+        // Puffer für den formatierten String
+        wchar_t buffer[256];
+        swprintf_s(
+            buffer,
+            L"NMEA Relay NT\n"
+            L"Version %d.%d.%d (Build %d)\n"
+            L"Copyright © Markus Russold\n"
+            L"All rights reserved.",
+            PROJECT_VERSION_MAJOR,
+            PROJECT_VERSION_MINOR,
+            PROJECT_VERSION_PATCH,
+            PROJECT_VERSION_BUILD
+        );
+
         ContentDialog dialog;
         dialog.Title(box_value(L"App Info"));
-        dialog.Content(box_value(
-            L"NMEA Relay NT\n"
-            L"Version 1.0.0 (Build 361)\n"
-            L"Copyright © Markus Russold\n"
-            L"All rights reserved."
-        ));
+        dialog.Content(box_value(buffer));
         dialog.CloseButtonText(L"OK");
 
-        // Attach to this window
         dialog.XamlRoot(PositionBar().XamlRoot());
+        dialog.ShowAsync();
+    }
+
+    void winrt::NMEA_Relay_NT::implementation::MainWindow::ShowGpsDebugInfo_Click(
+        winrt::Windows::Foundation::IInspectable const&,
+        winrt::Microsoft::UI::Xaml::RoutedEventArgs const&)
+    {
+        using namespace winrt::Microsoft::UI::Xaml::Controls;
+
+        ContentDialog dialog;
+        dialog.Title(box_value(L"GPS Debug Info"));
+
+        // Get the C++ string from your GPSData:
+        std::string gpsInfo = GPSData.GetAllMainData();
+
+        // Convert it to hstring:
+        winrt::hstring gpsText = winrt::to_hstring(gpsInfo);
+
+        TextBlock textBlock;
+        textBlock.Text(gpsText);
+        textBlock.TextWrapping(winrt::Microsoft::UI::Xaml::TextWrapping::Wrap);
+
+        dialog.Content(textBlock);
+        dialog.CloseButtonText(L"OK");
+
+        // Fix the XamlRoot!
+        dialog.XamlRoot(this->Content().XamlRoot());
 
         dialog.ShowAsync();
     }
@@ -143,7 +186,7 @@ namespace winrt::NMEA_Relay_NT::implementation
         winrt::Windows::Foundation::IInspectable const&,
         winrt::Microsoft::UI::Xaml::RoutedEventArgs const&)
     {
-        std::exit(0);
+        g_mainWindow.Close();
     }
 
     void winrt::NMEA_Relay_NT::implementation::MainWindow::PositionBar_Tapped(
@@ -191,6 +234,15 @@ namespace winrt::NMEA_Relay_NT::implementation
     {
         ClearStatusHighlights();
         SailButton().Background(SolidColorBrush(Colors::LightGreen()));
+        g_loggerEvents.LogMessage("Status wurde auf Segeln gesetzt", Logger::LOG_INFO);
+        logToDebugger("Segeln wurde ausgewäht.");
+
+        try {
+            g_config.SetShipStatus(8);
+        }
+        catch (...) {
+            // Handle parse error if needed
+        }
     }
 
     void winrt::NMEA_Relay_NT::implementation::MainWindow::EngineButton_Click(
@@ -199,6 +251,15 @@ namespace winrt::NMEA_Relay_NT::implementation
     {
         ClearStatusHighlights();
         EngineButton().Background(SolidColorBrush(Colors::LightGreen()));
+        g_loggerEvents.LogMessage("Status wurde auf Motor gesetzt", Logger::LOG_INFO);
+        logToDebugger("Motorantrieb wurde ausgewäht.");
+
+        try {
+            g_config.SetShipStatus(0);
+        }
+        catch (...) {
+            // Handle parse error if needed
+        }
     }
 
     void winrt::NMEA_Relay_NT::implementation::MainWindow::SailAndEngineButton_Click(
@@ -207,23 +268,84 @@ namespace winrt::NMEA_Relay_NT::implementation
     {
         ClearStatusHighlights();
         SailAndEngineButton().Background(SolidColorBrush(Colors::LightGreen()));
+        g_loggerEvents.LogMessage("Status wurde auf Segeln und Motor gesetzt", Logger::LOG_INFO);
+        logToDebugger("Segel und Motor wurde ausgewäht.");
+
+        try {
+            g_config.SetShipStatus(20);
+        }
+        catch (...) {
+            // Handle parse error if needed
+        }
     }
 
     void MainWindow::AnchorButton_Click(winrt::Windows::Foundation::IInspectable const& sender, winrt::Microsoft::UI::Xaml::RoutedEventArgs const& e)
     {
         ClearStatusHighlights();
         AnchorButton().Background(SolidColorBrush(Colors::LightGreen()));
+        g_loggerEvents.LogMessage("Status wurde auf Ankern gesetzt", Logger::LOG_INFO);
+        logToDebugger("Ankern wurde ausgewäht.");
+
+        try {
+            g_config.SetShipStatus(1);
+        }
+        catch (...) {
+            // Handle parse error if needed
+        }
     }
 
     void MainWindow::DockedButton_Click(winrt::Windows::Foundation::IInspectable const& sender, winrt::Microsoft::UI::Xaml::RoutedEventArgs const& e)
     {
         ClearStatusHighlights();
         DockedButton().Background(SolidColorBrush(Colors::LightGreen()));
+        g_loggerEvents.LogMessage("Status wurde auf Festgemacht gesetzt", Logger::LOG_INFO);
+        logToDebugger("Festgemacht wurde ausgewäht.");
+
+        try {
+            g_config.SetShipStatus(5);
+        }
+        catch (...) {
+            // Handle parse error if needed
+        }
+    }
+
+    void winrt::NMEA_Relay_NT::implementation::MainWindow::SetButtonStatus(int status)
+    {
+        // Zuerst alle zurücksetzen (optional)
+        SailButton().Background(winrt::Microsoft::UI::Xaml::Media::SolidColorBrush(winrt::Windows::UI::Colors::White()));
+        EngineButton().Background(winrt::Microsoft::UI::Xaml::Media::SolidColorBrush(winrt::Windows::UI::Colors::White()));
+        AnchorButton().Background(winrt::Microsoft::UI::Xaml::Media::SolidColorBrush(winrt::Windows::UI::Colors::White()));
+        DockedButton().Background(winrt::Microsoft::UI::Xaml::Media::SolidColorBrush(winrt::Windows::UI::Colors::White()));
+        SailAndEngineButton().Background(winrt::Microsoft::UI::Xaml::Media::SolidColorBrush(winrt::Windows::UI::Colors::White()));
+
+        // Setze den gewünschten Button auf grün
+        switch (status)
+        {
+        case 0:
+            EngineButton().Background(winrt::Microsoft::UI::Xaml::Media::SolidColorBrush(winrt::Windows::UI::Colors::LightGreen()));
+            break;
+        case 1:
+            AnchorButton().Background(winrt::Microsoft::UI::Xaml::Media::SolidColorBrush(winrt::Windows::UI::Colors::LightGreen()));
+            break;
+        case 5:
+            DockedButton().Background(winrt::Microsoft::UI::Xaml::Media::SolidColorBrush(winrt::Windows::UI::Colors::LightGreen()));
+            break;
+        case 8:
+            SailButton().Background(winrt::Microsoft::UI::Xaml::Media::SolidColorBrush(winrt::Windows::UI::Colors::LightGreen()));
+            break;
+        case 20:
+            SailAndEngineButton().Background(winrt::Microsoft::UI::Xaml::Media::SolidColorBrush(winrt::Windows::UI::Colors::LightGreen()));
+            break;
+        default:
+            // Unknown status → nichts machen oder Fehler loggen
+            break;
+        }
     }
 
     void MainWindow::TestButton_Click(winrt::Windows::Foundation::IInspectable const& sender, winrt::Microsoft::UI::Xaml::RoutedEventArgs const& e)
     {
-        CompassRotation().Angle(90);
+        ShipRotation().Angle(180);
+        SetSRVIndicatorRed();
     }
 
     void MainWindow::ClearStatusHighlights()
@@ -246,13 +368,221 @@ namespace winrt::NMEA_Relay_NT::implementation
         std::wstring msg = L"Changed [" + std::wstring(tag) + L"] = " + std::wstring(text) + L"\n";
         OutputDebugStringW(msg.c_str());
 
-        StatusBarFooterText().Text(L"Changed [" + std::wstring(tag) + L"] = " + std::wstring(text));
+        // --- Update g_config ---
+        std::string tagStr = winrt::to_string(tag);
+        std::string valueStr = winrt::to_string(text);
+
+        if (tagStr == "BoatName") {
+            g_config.SetShipName(valueStr);
+        }
+        else if (tagStr == "Destination") {
+            g_config.SetShipDest(valueStr);
+        }
+        else if (tagStr == "Callsign") {
+            g_config.SetCallSign(valueStr);
+        }
+        else if (tagStr == "ServerName") {
+            g_config.SetServerName(valueStr);
+        }
+        else if (tagStr == "ServerPort") {
+            try {
+                g_config.SetServerPort(std::stoi(valueStr));
+            }
+            catch (...) {
+                // Handle parse error if needed
+            }
+        }
+        else if (tagStr == "Key") {
+            g_config.SetApiKey(valueStr);
+        }
+        else if (tagStr == "OpenCPN") {
+            g_config.SetOpenCpnServer(valueStr);
+        }
+        else if (tagStr == "OpenCPNPort") {
+            try {
+                g_config.SetOpenCpnPort(std::stoi(valueStr));
+            }
+            catch (...) {
+                // Handle parse error if needed
+            }
+        }
+    }
+
+    void winrt::NMEA_Relay_NT::implementation::MainWindow::SetSRVIndicatorGreen()
+    {
+        SRVIndicator().Background(
+            winrt::Microsoft::UI::Xaml::Media::SolidColorBrush(
+                winrt::Windows::UI::Colors::Green()
+            )
+        );
+    }
+
+    void MainWindow::SetSRVIndicatorRed()
+    {
+        SRVIndicator().Background(
+            winrt::Microsoft::UI::Xaml::Media::SolidColorBrush(
+                winrt::Windows::UI::Colors::Red()
+            )
+        );
+    }
+
+    // Setters
+    void MainWindow::SetBoatName(winrt::hstring const& value) {
+        BoatNameTextBox().Text(value);
+    }
+
+    void MainWindow::SetDestination(winrt::hstring const& value) {
+        DestinationTextBox().Text(value);
+    }
+
+    void MainWindow::SetCallsign(winrt::hstring const& value) {
+        CallsignTextBox().Text(value);
+    }
+
+    void MainWindow::SetServerName(winrt::hstring const& value) {
+        ServerNameTextBox().Text(value);
+    }
+
+    void MainWindow::SetServerPort(winrt::hstring const& value) {
+        ServerPortTextBox().Text(value);
+    }
+
+    void MainWindow::SetKey(winrt::hstring const& value) {
+        KeyTextBox().Text(value);
+    }
+
+    void MainWindow::SetOpenCPN(winrt::hstring const& value) {
+        OpenCPNTextBox().Text(value);
+    }
+
+    void MainWindow::SetOpenCPNPort(winrt::hstring const& value) {
+        OpenCPNPortTextBox().Text(value);
+    }
+
+    void MainWindow::SetStatusBarFooterText(const winrt::hstring& text)
+    {
+        std::wstring tmp(text);
+        std::replace(tmp.begin(), tmp.end(), L'\n', L' ');
+        StatusBarFooterText().Text(winrt::hstring(tmp));
+    }
+
+    void MainWindow::SetSOG(double sogValue)
+    {
+        // Setze den Balken-Wert
+        SogBar().Value(sogValue);
+
+        // Formatiere den Text schön mit 2 Nachkommastellen + Einheit
+        std::wstringstream stream;
+        stream << std::fixed << std::setprecision(2) << sogValue << L" kn";
+
+        SogValueText().Text(winrt::hstring(stream.str()));
+    }
+
+    void MainWindow::SetCOG(double cogValue)
+    {
+        if (cogValue < 0) {
+            ShipIcon().Visibility(winrt::Microsoft::UI::Xaml::Visibility::Collapsed);
+
+            COGValueText().Text(winrt::hstring(L""));
+        }
+        else {
+            ShipIcon().Visibility(winrt::Microsoft::UI::Xaml::Visibility::Visible);
+            ShipRotation().Angle(cogValue);
+
+            std::wstringstream ss;
+            ss << std::fixed << std::setprecision(0) << cogValue << L"°";
+            COGValueText().Text(winrt::hstring(ss.str()));
+        }
+    }
+
+    void MainWindow::SetDataReliability(bool dataReliabilityValue)
+    {
+        if (dataReliabilityValue)
+        {
+            PositionBar().Background(SolidColorBrush(Colors::LightGreen()));
+        }
+        else
+        {
+            PositionBar().Background(SolidColorBrush(Colors::LightCoral()));
+            PositionBarText().Text(L"Keine gültigen Positionsdaten");
+        }
+    }
+
+    void MainWindow::SetLatLon(double lat, double lon)
+    {
+        if (GPSData.GetDataReliability())
+        {
+            auto latDMS = ConvertToDMS(lat, true);
+            auto lonDMS = ConvertToDMS(lon, false);
+
+            std::wstring positionText = latDMS + L"   " + lonDMS;
+
+            PositionBarText().Text(winrt::hstring{ positionText });
+        }
+        else {
+            PositionBarText().Text(L"Keine gültigen Positionsdaten");
+        }
+    }
+
+
+#include <chrono>
+
+    void MainWindow::SetUtc(double utc)
+    {
+        // Zerlege die NMEA UTC hhmmss.sss
+        int hours = static_cast<int>(utc) / 10000;
+        int minutes = (static_cast<int>(utc) % 10000) / 100;
+        int seconds = static_cast<int>(utc) % 100;
+
+        // Hole DataAge direkt von GPSData (deine globale Instanz)
+        int dataAgeSeconds = GPSData.GetDataAge();
+
+        wchar_t buffer[60];
+        swprintf_s(
+            buffer,
+            60,
+            L"UTC: %02d:%02d:%02d (%d s)",
+            hours,
+            minutes,
+            seconds,
+            dataAgeSeconds
+        );
+
+        UTCText().Text(winrt::hstring(buffer));
+    }
+
+    void MainWindow::SetDataAge(int dataAge)
+    {
+        // Hole UTC aus GPSData (dein Getter liefert double, z. B. 141516.0)
+        double utc = GPSData.GetUtc();
+
+        // Zerlege NMEA UTC hhmmss.sss
+        int hours = static_cast<int>(utc) / 10000;
+        int minutes = (static_cast<int>(utc) % 10000) / 100;
+        int seconds = static_cast<int>(utc) % 100;
+
+        // Ausgabe mit übergebenem DataAge
+        wchar_t buffer[60];
+        swprintf_s(
+            buffer,
+            60,
+            L"UTC: %02d:%02d:%02d (%d s)",
+            hours,
+            minutes,
+            seconds,
+            dataAge
+        );
+
+        // Zeige an
+        UTCText().Text(winrt::hstring(buffer));
+    }
+
+    void MainWindow::SetFooterCounter(int value)
+    {
+        std::wstringstream ss;
+        ss << value;
+        FooterCounter().Text(winrt::hstring(ss.str()));
     }
 }
 
-std::string getRoamingAppDataFolder()
-{
-    using namespace winrt::Windows::Storage;
-    auto folder = ApplicationData::Current().RoamingFolder();
-    return winrt::to_string(folder.Path());
-}
+

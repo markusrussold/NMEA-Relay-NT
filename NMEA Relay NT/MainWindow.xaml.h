@@ -3,6 +3,7 @@
 #include "MainWindow.g.h"
 #include <winrt/Windows.Foundation.h>
 #include <winrt/Microsoft.UI.Xaml.h>
+#include "Constants.h"
 
 namespace winrt::NMEA_Relay_NT::implementation
 {
@@ -13,6 +14,8 @@ namespace winrt::NMEA_Relay_NT::implementation
         void OpenConfigPath_Click(winrt::Windows::Foundation::IInspectable const&, winrt::Microsoft::UI::Xaml::RoutedEventArgs const&);
 
         void Version_Click(winrt::Windows::Foundation::IInspectable const&, winrt::Microsoft::UI::Xaml::RoutedEventArgs const&);
+
+        void ShowGpsDebugInfo_Click(winrt::Windows::Foundation::IInspectable const&, winrt::Microsoft::UI::Xaml::RoutedEventArgs const&);
 
         void Exit_Click(winrt::Windows::Foundation::IInspectable const&, winrt::Microsoft::UI::Xaml::RoutedEventArgs const&);
 
@@ -45,14 +48,38 @@ namespace winrt::NMEA_Relay_NT::implementation
 
         void ClearStatusHighlights();
 
+        void SetButtonStatus(int status);
+
         void ConfigTextBox_TextChanged(
             winrt::Windows::Foundation::IInspectable const& sender,
             winrt::Microsoft::UI::Xaml::Controls::TextChangedEventArgs const& e);
 
+        void SetSRVIndicatorGreen();
+        void SetSRVIndicatorRed();
+
+        // Setters
+        void SetBoatName(winrt::hstring const& value);
+        void SetDestination(winrt::hstring const& value);
+        void SetCallsign(winrt::hstring const& value);
+        void SetServerName(winrt::hstring const& value);
+        void SetServerPort(winrt::hstring const& value);
+        void SetKey(winrt::hstring const& value);
+        void SetOpenCPN(winrt::hstring const& value);
+        void SetOpenCPNPort(winrt::hstring const& value);
+        void SetFooterCounter(int value);
+
+        void MainWindow::SetStatusBarFooterText(const winrt::hstring& text);
+
+        void SetSOG(double sogValue);
+        void SetCOG(double cogValue);
+        void SetDataReliability(bool dataReliabilityValue);
+        void SetLatLon(double lat, double lon);
+        void SetUtc(double utc);
+        void MainWindow::SetDataAge(int dataAge);
+
     private:
         HWND GetWindowHandle();
     };
-
 }
 
 namespace winrt::NMEA_Relay_NT::factory_implementation

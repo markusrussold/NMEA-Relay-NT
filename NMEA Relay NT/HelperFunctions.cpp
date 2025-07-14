@@ -377,13 +377,6 @@ bool isServerAvailable(const std::string& ipAddressOrHostname)
 
 void PipeServerLoop()
 {
-    struct VesselState {
-        std::wstring latlon = L"39° 53' 34.00\" N   4° 16' 21.89\" E";
-        double cog = 120.5;
-        double tripdist = 34.261;
-        std::string status = "UNKNOWN";
-    };
-
     g_loggerEvents.LogMessage("thread PipeServerLoopThread started", 2);
     logToDebugger("thread PipeServerLoopThread started");
 
@@ -391,12 +384,10 @@ void PipeServerLoop()
     {
         HANDLE hPipe = CreateNamedPipe(
             L"\\\\.\\pipe\\NMEA_PIPE",
-            PIPE_ACCESS_DUPLEX,
+            PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,
             PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT,
             PIPE_UNLIMITED_INSTANCES,
-            512, 512,
-            0,
-            NULL
+            512, 512, 0, NULL
         );
 
         if (hPipe == INVALID_HANDLE_VALUE) {
@@ -404,14 +395,31 @@ void PipeServerLoop()
             break;
         }
 
-        BOOL connected = ConnectNamedPipe(hPipe, NULL) ? TRUE : (GetLastError() == ERROR_PIPE_CONNECTED);
+        OVERLAPPED ol = {};
+        ol.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+
+        BOOL connected = ConnectNamedPipe(hPipe, &ol);
+        if (!connected && GetLastError() == ERROR_IO_PENDING)
+        {
+            HANDLE events[] = { g_stopEvent, ol.hEvent };
+            DWORD waitResult = WaitForMultipleObjects(2, events, FALSE, INFINITE);
+
+            if (waitResult == WAIT_OBJECT_0) {
+                // Stop event triggered
+                CancelIo(hPipe);
+                CloseHandle(ol.hEvent);
+                CloseHandle(hPipe);
+                break;
+            }
+            else if (waitResult == WAIT_OBJECT_0 + 1) {
+                // Client connected
+                connected = TRUE;
+            }
+        }
 
         if (connected) {
-            // Capture state per client
-            VesselState state;
-
             // Lambda to handle the client
-            std::thread([hPipe, state]() mutable {
+            std::thread([hPipe]() mutable {
                 char buffer[128] = {};
                 DWORD bytesRead = 0;
 
@@ -432,8 +440,6 @@ void PipeServerLoop()
                 if (command == "GET_LATLON") {
                     try {
                         std::wstring positionText = L"";
-                        //std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-                        //std::string reply = converter.to_bytes(state.latlon);
 
                         if (GPSData.GetDataReliability())
                         {
@@ -545,6 +551,8 @@ void PipeServerLoop()
         else {
             CloseHandle(hPipe);
         }
+
+        CloseHandle(ol.hEvent);
     }
 
     g_loggerEvents.LogMessage("thread PipeServerLoopThread ended", 2);
@@ -995,10 +1003,15 @@ void tcp_keep_connection_alive()
             FD_SET(sock, &read_fds);
 
             struct timeval timeout;
-            timeout.tv_sec = 2;  // 2-second timeout
-            timeout.tv_usec = 0;
+            timeout.tv_sec = 0;
+            timeout.tv_usec = 100000; //100ms
 
             int select_result = select(sock + 1, &read_fds, NULL, NULL, &timeout);
+
+            if (g_shouldStopThreads) {
+                break;
+            }
+
             if (select_result > 0) {
                 char buffer[1024];  // Temporary buffer for received data
                 int bytes_received = recv(sock, buffer, sizeof(buffer) - 1, 0);
@@ -1253,7 +1266,7 @@ SOCKET tcp_connect_to_server(const char* server_hostname, int server_port) {
 int sendAISMessagePosition(std::string foreignPosReport) {
     AisProcessor AIS;
 
-    logToDebugger("sendAISMessagePosition entered");
+    //logToDebugger("sendAISMessagePosition entered");
 
     // Variables to hold the parsed values
     int mmsi;
@@ -1376,5 +1389,6 @@ std::wstring FormatDoubleForGermanLocaleW(double value, int precision = 4) {
 void StopThreads()
 {
     g_shouldStopThreads = true;
+    SetEvent(g_stopEvent);
     g_cv.notify_all();
 }

@@ -15,6 +15,7 @@
 extern std::atomic<bool> g_shouldStopThreads;
 extern std::condition_variable g_cv;
 extern std::mutex g_thread_mutex;
+extern HANDLE g_stopEvent;
 
 // globale Objekte
 extern winrt::NMEA_Relay_NT::MainWindow g_mainWindow;

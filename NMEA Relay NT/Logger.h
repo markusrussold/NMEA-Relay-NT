@@ -31,6 +31,11 @@ public:
     void LogMessage(const std::string& message);
     void LogMessage(const std::wstring& message);
     std::string GetFileNameAndPath();
+    std::string GetCurrentTimestampWithMilliseconds();
+    size_t GetFileSize();
+    void RotateLogFile();
 };
 
 #endif  // LOGGER_H
+
+

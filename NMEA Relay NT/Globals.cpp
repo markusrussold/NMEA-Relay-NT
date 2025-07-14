@@ -10,6 +10,7 @@
 std::atomic<bool> g_shouldStopThreads = false;
 std::condition_variable g_cv;
 std::mutex g_thread_mutex;
+HANDLE g_stopEvent = CreateEvent(NULL, TRUE, FALSE, NULL); // Manual-reset, not signaled
 
 // globale Referenz auf das MainWindow
 winrt::NMEA_Relay_NT::MainWindow g_mainWindow{ nullptr };

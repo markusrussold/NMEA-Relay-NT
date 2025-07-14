@@ -525,7 +525,7 @@ void gpsData::CalculateAndUpdateDistance() {
         if (old_data_wasreliable)
         {
             double nm = CalculateDistanceNm(old_lat, old_lon, main_data.lat, main_data.lon);
-            logToDebugger("Calculated distance: ", nm);
+            //logToDebugger("Calculated distance: ", nm);
 
             if (nm > NOISE_THRESHOLD_NM) {
                 old_lat = main_data.lat;

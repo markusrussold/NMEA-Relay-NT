@@ -7,7 +7,7 @@
     mc:Ignorable="d"
     Title="NMEA Relay NT">
 
-    <Grid>
+    <Grid x:Name="RootGrid">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto"/>
             <!-- MenuBar -->

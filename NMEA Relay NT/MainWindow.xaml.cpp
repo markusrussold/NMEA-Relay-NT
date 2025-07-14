@@ -84,6 +84,8 @@ namespace winrt::NMEA_Relay_NT::implementation
         OpenCPNPortTextBox().Text(L"2947");
 
         AnchorButton().Background(SolidColorBrush(Colors::LightGreen()));
+
+        RootGrid().RequestedTheme(ElementTheme::Dark);
     }
 
     HWND MainWindow::GetWindowHandle()

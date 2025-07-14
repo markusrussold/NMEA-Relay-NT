@@ -7,6 +7,10 @@
 #include <ctime>
 #include <chrono>
 #include <iomanip>
+#include <sstream>
+
+constexpr size_t MAX_LOG_FILE_SIZE = 10 * 1024 * 1024;  // 10 MB
+//constexpr size_t MAX_LOG_FILE_SIZE = 10 * 1024;  // 10 KB
 
 // Function to get the executable's directory path
 std::string Logger::GetExecutablePath() {
@@ -37,11 +41,12 @@ Logger::~Logger() {
     std::lock_guard<std::mutex> lock(logMutex);
     if (logFile.is_open()) {
         if (withTimeStamp) {
-            auto now = std::chrono::system_clock::now();
-            std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
-            std::tm localTime;
-            localtime_s(&localTime, &currentTime);
-            logFile << std::put_time(&localTime, "%Y-%m-%d %H:%M:%S") << "\t";
+            //auto now = std::chrono::system_clock::now();
+            //std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
+            //std::tm localTime;
+            //localtime_s(&localTime, &currentTime);
+            //logFile << std::put_time(&localTime, "%Y-%m-%d %H:%M:%S") << "\t";
+            logFile << GetCurrentTimestampWithMilliseconds() << "\t";
         }
 
         logFile << "Logger is shutting down" << std::endl;
@@ -80,18 +85,23 @@ void Logger::LogMessage(const std::string& message, int msgLogLevel) {
     if (msgLogLevel > 0 && msgLogLevel <= log_level) {
         if (logFile.is_open()) {
             if (withTimeStamp) {
-                // Get current time as a time_t object
-                auto now = std::chrono::system_clock::now();
-                std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
+                //// Get current time as a time_t object
+                //auto now = std::chrono::system_clock::now();
+                //std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
 
-                // Convert to local time and format it to a human-readable format
-                std::tm localTime;
-                localtime_s(&localTime, &currentTime);  // Thread-safe version of localtime
+                //// Convert to local time and format it to a human-readable format
+                //std::tm localTime;
+                //localtime_s(&localTime, &currentTime);  // Thread-safe version of localtime
 
-                logFile << std::put_time(&localTime, "%Y-%m-%d %H:%M:%S") << "\t";  // Append timestamp
+                //logFile << std::put_time(&localTime, "%Y-%m-%d %H:%M:%S") << "\t";  // Append timestamp
+                logFile << GetCurrentTimestampWithMilliseconds() << "\t";
             }
             logFile << message << std::endl;
         }
+    }
+
+    if (GetFileSize() >= MAX_LOG_FILE_SIZE) {
+        RotateLogFile();
     }
 }
 
@@ -107,17 +117,22 @@ void Logger::LogMessage(const std::string& message) {
     if (msgLogLevel > 0 && msgLogLevel <= log_level) {
         if (logFile.is_open()) {
             if (withTimeStamp) {
-                // Get current time as a time_t object
-                auto now = std::chrono::system_clock::now();
-                std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
+                //// Get current time as a time_t object
+                //auto now = std::chrono::system_clock::now();
+                //std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
 
-                // Convert to local time and format it to a human-readable format
-                std::tm localTime;
-                localtime_s(&localTime, &currentTime);  // Thread-safe version of localtime
+                //// Convert to local time and format it to a human-readable format
+                //std::tm localTime;
+                //localtime_s(&localTime, &currentTime);  // Thread-safe version of localtime
 
-                logFile << std::put_time(&localTime, "%Y-%m-%d %H:%M:%S") << "\t";  // Append timestamp
+                //logFile << std::put_time(&localTime, "%Y-%m-%d %H:%M:%S") << "\t";  // Append timestamp
+                logFile << GetCurrentTimestampWithMilliseconds() << "\t";
             }
             logFile << message << std::endl;
+        }
+
+        if (GetFileSize() >= MAX_LOG_FILE_SIZE) {
+            RotateLogFile();
         }
     }
 }
@@ -136,3 +151,44 @@ void Logger::SetLogLevel(const int newLogLevel) {
         log_level = newLogLevel;
     }
 };
+
+std::string Logger::GetCurrentTimestampWithMilliseconds() {
+    using namespace std::chrono;
+
+    auto now = system_clock::now();
+    std::time_t currentTime = system_clock::to_time_t(now);
+    auto ms_part = duration_cast<milliseconds>(now.time_since_epoch()) % 1000;
+
+    std::tm localTime;
+    localtime_s(&localTime, &currentTime);
+
+    std::ostringstream oss;
+    oss << std::put_time(&localTime, "%Y-%m-%d %H:%M:%S")
+        << '.' << std::setw(3) << std::setfill('0') << ms_part.count();
+
+    return oss.str();
+}
+
+size_t Logger::GetFileSize() {
+    logFile.flush();  // Ensure all data is written
+    std::ifstream in(fileNameAndPath, std::ifstream::ate | std::ifstream::binary);
+    return in.is_open() ? in.tellg() : 0;
+}
+
+void Logger::RotateLogFile() {
+    logFile.close();
+
+    std::ostringstream oss;
+    auto timestamp = GetCurrentTimestampWithMilliseconds();
+    std::replace(timestamp.begin(), timestamp.end(), ':', '-');
+    std::replace(timestamp.begin(), timestamp.end(), ' ', '_');
+    std::replace(timestamp.begin(), timestamp.end(), '.', '-');
+
+    std::string rotatedFileName = fileNameAndPath + "." + timestamp + ".log";
+    std::rename(fileNameAndPath.c_str(), rotatedFileName.c_str());
+
+    logFile.open(fileNameAndPath, std::ios::out | std::ios::app);
+    if (!logFile.is_open()) {
+        std::cerr << "Failed to open new log file after rotation: " << fileNameAndPath << std::endl;
+    }
+}

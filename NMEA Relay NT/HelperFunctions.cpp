@@ -128,7 +128,7 @@ public:
                     std::lock_guard innerLock(_updateMutex);
                     updateScheduled = false;
                 }
-                });
+            });
         }
     }
 };

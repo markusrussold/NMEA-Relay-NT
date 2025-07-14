@@ -12,6 +12,15 @@
 #include "Constants.h"
 #include <set>
 #include "AisProcessor.h"
+#include <windows.h>
+#include <string>
+#include <locale>
+#include <codecvt>
+#include <atomic>
+#include <algorithm>
+#include <winrt/Windows.System.Threading.h>
+#include <winrt/Windows.Foundation.h>
+#include <cmath>
 
 #include <nmea/sentence.hpp>
 #include <nmea/message/gga.hpp>
@@ -29,6 +38,7 @@ private:
     std::atomic<float> latestLat = 0.0f;
     std::atomic<float> latestLon = 0.0f;
     std::atomic<float> latestUTC = 0.0f;
+    std::atomic<float> latestTripDist = 0.0f;
     std::atomic<bool> latestDataReliability = false;
     std::mutex _updateMutex;
     std::atomic<int> latestDataAge = 0;
@@ -58,6 +68,17 @@ public:
     {
         latestUTC.store(utc, std::memory_order_relaxed);
         ScheduleUpdate();
+    }
+
+    void UpdateTripDist(double tripdist) override
+    {
+        latestTripDist.store(tripdist, std::memory_order_relaxed);
+        g_config.SetTripDistance(tripdist);
+        ScheduleUpdate();
+
+        winrt::Windows::System::Threading::ThreadPool::RunAsync([](winrt::Windows::Foundation::IAsyncAction const&) {
+            g_config.Save();
+        });
     }
 
     void UpdateLatLon(double lat, double lon) override
@@ -100,6 +121,7 @@ public:
                 impl->SetLatLon(latestLat.load(std::memory_order_relaxed), latestLon.load(std::memory_order_relaxed));
                 impl->SetUtc(latestUTC.load(std::memory_order_relaxed));
                 impl->SetDataAge(latestDataAge.load(std::memory_order_relaxed));
+                impl->SetTripDistanceText(latestTripDist.load(std::memory_order_relaxed));
 
                 // Ready for next batch
                 {
@@ -177,6 +199,182 @@ bool isServerAvailable(const std::string& ipAddressOrHostname)
     return dwRetVal != 0;
 }
 
+void PipeServerLoop()
+{
+    struct VesselState {
+        std::wstring latlon = L"39° 53' 34.00\" N   4° 16' 21.89\" E";
+        double cog = 120.5;
+        double tripdist = 34.261;
+        std::string status = "UNKNOWN";
+    };
+
+    g_loggerEvents.LogMessage("thread PipeServerLoopThread started", 2);
+    logToDebugger("thread PipeServerLoopThread started");
+
+    while (!g_shouldStopThreads)
+    {
+        HANDLE hPipe = CreateNamedPipe(
+            L"\\\\.\\pipe\\NMEA_PIPE",
+            PIPE_ACCESS_DUPLEX,
+            PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT,
+            PIPE_UNLIMITED_INSTANCES,
+            512, 512,
+            0,
+            NULL
+        );
+
+        if (hPipe == INVALID_HANDLE_VALUE) {
+            logToDebugger("CreateNamedPipe failed. Error: ", GetLastError());
+            break;
+        }
+
+        BOOL connected = ConnectNamedPipe(hPipe, NULL) ? TRUE : (GetLastError() == ERROR_PIPE_CONNECTED);
+
+        if (connected) {
+            // Capture state per client
+            VesselState state;
+
+            // Lambda to handle the client
+            std::thread([hPipe, state]() mutable {
+                char buffer[128] = {};
+                DWORD bytesRead = 0;
+
+                BOOL result = ReadFile(hPipe, buffer, sizeof(buffer) - 1, &bytesRead, NULL);
+                if (!result || bytesRead == 0) {
+                    DisconnectNamedPipe(hPipe);
+                    CloseHandle(hPipe);
+                    return;
+                }
+
+                std::string command(buffer, bytesRead);
+                command.erase(std::remove(command.begin(), command.end(), '\r'), command.end());
+                command.erase(std::remove(command.begin(), command.end(), '\n'), command.end());
+
+                logToDebugger("Pipe Command received: ", command);
+                DWORD bytesWritten = 0;
+
+                if (command == "GET_LATLON") {
+                    try {
+                        std::wstring positionText = L"";
+                        //std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+                        //std::string reply = converter.to_bytes(state.latlon);
+
+                        if (GPSData.GetDataReliability())
+                        {
+                            auto latDMS = ConvertToDMS(GPSData.GetLatitude(), true);
+                            auto lonDMS = ConvertToDMS(GPSData.GetLongitude(), false);
+
+                            positionText = latDMS + L"   " + lonDMS;
+                        }
+
+                        std::string reply = WStringToUtf8(positionText);
+
+                        WriteFile(hPipe, reply.c_str(), static_cast<DWORD>(reply.size()), &bytesWritten, NULL);
+                    }
+                    catch (const std::exception& e) {
+                        logToDebugger("Pipe Handler - UTF-8 encoding error: ", e.what());
+                    }
+                }
+                else if (command == "GET_COG") {
+                    double COGData = 0.0;
+
+                    if (GPSData.GetDataReliability()) {
+                        COGData = GPSData.GetCog();
+                    }
+
+                    std::string reply = FormatDoubleForGermanLocale(COGData, 4);
+                    WriteFile(hPipe, reply.c_str(), static_cast<DWORD>(reply.size()), &bytesWritten, NULL);
+                }
+                else if (command == "GET_TRIPDIST") {
+                    double tripDistData = 0.0;
+
+                    if (GPSData.GetDataReliability()) {
+                        tripDistData = GPSData.GetTripDist();
+                    }
+
+                    std::string reply = FormatDoubleForGermanLocale(tripDistData, 4);
+                    WriteFile(hPipe, reply.c_str(), static_cast<DWORD>(reply.size()), &bytesWritten, NULL);
+                }
+                else if (command == "SET_ENGINE") {
+                    if (g_mainWindow) {
+                        auto dispatcher = g_mainWindow.DispatcherQueue();
+                        dispatcher.TryEnqueue([]()
+                            {
+                                auto impl = winrt::get_self<winrt::NMEA_Relay_NT::implementation::MainWindow>(g_mainWindow);
+                                impl->EngineButton_Click(nullptr, nullptr);
+                            });
+                    }
+
+                    logToDebugger("Pipe Handler - Status updated to ENGINE");
+                }
+                else if (command == "SET_SAIL") {
+                    if (g_mainWindow) {
+                        auto dispatcher = g_mainWindow.DispatcherQueue();
+                        dispatcher.TryEnqueue([]()
+                            {
+                                auto impl = winrt::get_self<winrt::NMEA_Relay_NT::implementation::MainWindow>(g_mainWindow);
+                                impl->SailButton_Click(nullptr, nullptr);
+                            });
+                    }
+
+                    logToDebugger("Pipe Handler - Status updated to SAIL");
+                }
+                else if (command == "SET_DOCKED") {
+                    if (g_mainWindow) {
+                        auto dispatcher = g_mainWindow.DispatcherQueue();
+                        dispatcher.TryEnqueue([]()
+                            {
+                                auto impl = winrt::get_self<winrt::NMEA_Relay_NT::implementation::MainWindow>(g_mainWindow);
+                                impl->DockedButton_Click(nullptr, nullptr);
+                            });
+                    }
+
+                    logToDebugger("Pipe Handler - Status updated to DOCKED");
+                }
+                else if (command == "SET_ANCHOR") {
+                    if (g_mainWindow) {
+                        auto dispatcher = g_mainWindow.DispatcherQueue();
+                        dispatcher.TryEnqueue([]()
+                            {
+                                auto impl = winrt::get_self<winrt::NMEA_Relay_NT::implementation::MainWindow>(g_mainWindow);
+                                impl->AnchorButton_Click(nullptr, nullptr);
+                            });
+                    }
+
+                    logToDebugger("Pipe Handler - Status updated to ANCHOR");
+                }
+                else if (command == "SET_ENGINESAIL") {
+                    if (g_mainWindow) {
+                        auto dispatcher = g_mainWindow.DispatcherQueue();
+                        dispatcher.TryEnqueue([]()
+                            {
+                                auto impl = winrt::get_self<winrt::NMEA_Relay_NT::implementation::MainWindow>(g_mainWindow);
+                                impl->SailAndEngineButton_Click(nullptr, nullptr);
+                            });
+                    }
+
+                    logToDebugger("Pipe Handler - Status updated to ENGINESAIL");
+                }
+                else {
+                    std::string unknown = "UNKNOWN COMMAND";
+                    WriteFile(hPipe, unknown.c_str(), static_cast<DWORD>(unknown.size()), &bytesWritten, NULL);
+                    logToDebugger("Pipe Handler - Unknown command.");
+                }
+
+                FlushFileBuffers(hPipe);
+                DisconnectNamedPipe(hPipe);
+                CloseHandle(hPipe);
+                }).detach(); // 🚀 Launch and detach the lambda thread
+        }
+        else {
+            CloseHandle(hPipe);
+        }
+    }
+
+    g_loggerEvents.LogMessage("thread PipeServerLoopThread ended", 2);
+    logToDebugger("thread PipeServerLoopThread ended");
+}
+
 void appPulse()
 {
     g_loggerEvents.LogMessage("thread appPulse started", 2);
@@ -185,6 +383,7 @@ void appPulse()
     while (!g_shouldStopThreads)
     {
         GPSData.CheckDataAge();
+        GPSData.CalculateAndUpdateDistance();
         std::this_thread::sleep_for(std::chrono::milliseconds(APP_PULSE_WAITING_MSEC));
     }
 
@@ -202,7 +401,7 @@ void queueProcessing()
         while (isServerAvailable(g_config.GetServerName())) {
             std::string message;
             if (reportQueue.try_pop(message)) {
-                g_loggerEvents.LogMessage("send_posreport: queued message sent", 1);
+                //g_loggerEvents.LogMessage("send_posreport: queued message sent", 1);
                 send_udp_message(g_config.GetServerName(), g_config.GetServerPort(), message);
             }
             else {
@@ -275,14 +474,14 @@ void send_posreport()
                     });
             }
 
-            g_loggerEvents.LogMessage("send_posreport: data is reliable, report pushed into queue - " + GPSData.GetAllMainData(), 2);
+            //g_loggerEvents.LogMessage("send_posreport: data is reliable, report pushed into queue - " + GPSData.GetAllMainData(), 2);
         }
         else {
             if (g_config.GetSendPosReports() == 0) {
-                g_loggerEvents.LogMessage("send_posreport: sending reports is deactivated  in configfile - " + GPSData.GetAllMainData(), 1);
+                //g_loggerEvents.LogMessage("send_posreport: sending reports is deactivated  in configfile - " + GPSData.GetAllMainData(), 1);
             }
             else {
-                g_loggerEvents.LogMessage("send_posreport: data is not reliable, no report sent - " + GPSData.GetAllMainData(), 1);
+                //g_loggerEvents.LogMessage("send_posreport: data is not reliable, no report sent - " + GPSData.GetAllMainData(), 1);
             }
         }
 
@@ -882,4 +1081,66 @@ int sendAISMessagePosition(std::string foreignPosReport) {
     send_udp_message(g_config.GetOpenCpnServer().c_str(), g_config.GetOpenCpnPort(), nmeaSentence);
 
     return 0;
+}
+
+std::string WStringToUtf8(const std::wstring& wstr)
+{
+    if (wstr.empty()) return {};
+
+    int size = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, nullptr, 0, nullptr, nullptr);
+    if (size <= 0) return {};
+
+    std::string result(size - 1, '\0');  // -1 to exclude null terminator
+    WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), -1, &result[0], size, nullptr, nullptr);
+    return result;
+}
+
+// Converts degrees to radians
+inline double DegreesToRadians(double degrees) {
+    return degrees * M_PI / 180.0;
+}
+
+// Calculates distance between two coordinates in nautical miles
+double CalculateDistanceNm(double lat1, double lon1, double lat2, double lon2) {
+    // Convert degrees to radians
+    double lat1_rad = DegreesToRadians(lat1);
+    double lon1_rad = DegreesToRadians(lon1);
+    double lat2_rad = DegreesToRadians(lat2);
+    double lon2_rad = DegreesToRadians(lon2);
+
+    // Haversine formula
+    double delta_lat = lat2_rad - lat1_rad;
+    double delta_lon = lon2_rad - lon1_rad;
+
+    double a = std::pow(std::sin(delta_lat / 2), 2) +
+        std::cos(lat1_rad) * std::cos(lat2_rad) *
+        std::pow(std::sin(delta_lon / 2), 2);
+
+    double c = 2 * std::atan2(std::sqrt(a), std::sqrt(1 - a));
+
+    return kEarthRadiusNm * c;
+}
+
+std::string FormatDoubleForGermanLocale(double value, int precision = 4) {
+    std::ostringstream stream;
+    try {
+        stream.imbue(std::locale("de_DE.UTF-8"));
+    }
+    catch (...) {
+        stream.imbue(std::locale::classic());
+    }
+    stream << std::fixed << std::setprecision(precision) << value;
+    return stream.str();
+}
+
+std::wstring FormatDoubleForGermanLocaleW(double value, int precision = 4) {
+    std::wostringstream stream;
+    try {
+        stream.imbue(std::locale("de_DE.UTF-8"));  // try German locale
+    }
+    catch (...) {
+        stream.imbue(std::locale::classic());      // fallback to default locale
+    }
+    stream << std::fixed << std::setprecision(precision) << value;
+    return stream.str();
 }

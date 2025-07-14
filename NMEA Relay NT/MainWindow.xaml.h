@@ -43,7 +43,8 @@ namespace winrt::NMEA_Relay_NT::implementation
         void DockedButton_Click(winrt::Windows::Foundation::IInspectable const& sender,
             winrt::Microsoft::UI::Xaml::RoutedEventArgs const& e);
 
-        void TestButton_Click(winrt::Windows::Foundation::IInspectable const& sender,
+        winrt::Windows::Foundation::IAsyncAction MainWindow::ResetTripdistanzButton_Click(
+            winrt::Windows::Foundation::IInspectable const& sender,
             winrt::Microsoft::UI::Xaml::RoutedEventArgs const& e);
 
         void ClearStatusHighlights();
@@ -57,6 +58,8 @@ namespace winrt::NMEA_Relay_NT::implementation
         void SetSRVIndicatorGreen();
         void SetSRVIndicatorRed();
 
+        void SetTripDistanceText(double value);
+
         // Setters
         void SetBoatName(winrt::hstring const& value);
         void SetDestination(winrt::hstring const& value);
@@ -67,6 +70,8 @@ namespace winrt::NMEA_Relay_NT::implementation
         void SetOpenCPN(winrt::hstring const& value);
         void SetOpenCPNPort(winrt::hstring const& value);
         void SetFooterCounter(int value);
+
+        fire_and_forget MainWindow::TripDistanceEdit_Tapped(IInspectable const&, winrt::Microsoft::UI::Xaml::Input::TappedRoutedEventArgs const&);
 
         void MainWindow::SetStatusBarFooterText(const winrt::hstring& text);
 

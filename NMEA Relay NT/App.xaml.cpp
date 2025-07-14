@@ -5,6 +5,7 @@
 #include <thread>
 #include "HelperFunctions.h"
 #include "Constants.h"
+#include <winrt/Windows.Globalization.h>
 
 extern void send_posreport();
 extern void sendHeartBeat();
@@ -34,6 +35,9 @@ namespace winrt::NMEA_Relay_NT::implementation
 
     void App::OnLaunched(LaunchActivatedEventArgs const&)
     {
+        // Setze die App-Sprache (z. B. Deutsch/Österreich)
+        winrt::Windows::Globalization::ApplicationLanguages::PrimaryLanguageOverride(L"de-AT");
+
         winrt::NMEA_Relay_NT::MainWindow myWindow = winrt::NMEA_Relay_NT::MainWindow();
         myWindow.Activate();
         g_mainWindow = myWindow;
@@ -53,6 +57,10 @@ namespace winrt::NMEA_Relay_NT::implementation
         }
         logToDebugger("MaxDataAgeSeconds: ", g_config.GetGpsMaxDataAgeSeconds());
 
+        if (g_config.GetTripDistance() > 0) {
+            GPSData.SetTripDist(g_config.GetTripDistance());
+        }
+
         posReportThread = std::thread(send_posreport);
         heartbeatThread = std::thread(sendHeartBeat);
         checkServerThread = std::thread(checkRemoteServer);
@@ -60,6 +68,7 @@ namespace winrt::NMEA_Relay_NT::implementation
         tcpKeepAliveThread = std::thread(tcp_keep_connection_alive);
         appPulseThread = std::thread(appPulse);
         queueProcessingThread = std::thread(queueProcessing);
+        PipeServerLoopThread = std::thread(PipeServerLoop);
 
         // Shutdown-Hook
         myWindow.Closed([this](auto&&, auto&&) {
@@ -72,9 +81,11 @@ namespace winrt::NMEA_Relay_NT::implementation
             if (tcpKeepAliveThread.joinable()) tcpKeepAliveThread.join();
             if (appPulseThread.joinable()) appPulseThread.join();
             if (queueProcessingThread.joinable()) queueProcessingThread.join();
+            if (PipeServerLoopThread.joinable()) PipeServerLoopThread.join();
 
             g_loggerEvents.LogMessage("App shutdown via Window.Closed", Logger::LOG_INFO);
             logToDebugger("App shutdown via Window.Closed");
             });
     }
+
 }

@@ -84,6 +84,12 @@ void gpsData::NotifyUtc() {
     }
 }
 
+void gpsData::NotifyTripDist() {
+    for (Observer* observer : observers) {
+        observer->UpdateTripDist(main_data.tripdist);
+    }
+}
+
 void gpsData::NotifyAlt() {
     for (Observer* observer : observers) {
         observer->UpdateAlt(main_data.alt);
@@ -218,6 +224,14 @@ void gpsData::SetUtc(double newUtc) {
     }
 }
 
+void gpsData::SetTripDist(double newTripDist) {
+    std::lock_guard<std::mutex> lock(mtx);
+    if (newTripDist != main_data.tripdist) {
+        main_data.tripdist = newTripDist;
+        NotifyTripDist();
+    }
+}
+
 void gpsData::SetAlt(double newAlt) {
     std::lock_guard<std::mutex> lock(mtx);
     if (newAlt != main_data.alt) {
@@ -323,6 +337,11 @@ double gpsData::GetHdop() const {
 double gpsData::GetUtc() const {
     std::lock_guard<std::mutex> lock(mtx);
     return main_data.utc;
+}
+
+double gpsData::GetTripDist() const {
+    std::lock_guard<std::mutex> lock(mtx);
+    return main_data.tripdist;
 }
 
 double gpsData::GetAlt() const {
@@ -499,3 +518,33 @@ std::string gpsData::GetFullStatusReport() {
     return oss.str();
 }
 
+void gpsData::CalculateAndUpdateDistance() {
+    constexpr double NOISE_THRESHOLD_NM = 0.00108; // Entspricht ca. 2 m
+
+    if (GetDataReliability()) {
+        if (old_data_wasreliable)
+        {
+            double nm = CalculateDistanceNm(old_lat, old_lon, main_data.lat, main_data.lon);
+            logToDebugger("Calculated distance: ", nm);
+
+            if (nm > NOISE_THRESHOLD_NM) {
+                old_lat = main_data.lat;
+                old_lon = main_data.lon;
+
+                SetTripDist(GetTripDist() + nm);
+            }
+        }
+        else {
+            old_data_wasreliable = true;
+            old_lat = main_data.lat;
+            old_lon = main_data.lon;
+        }
+    }
+}
+
+void gpsData::ResetTripDist() {
+    old_data_wasreliable = false;
+    old_lat = 0;
+    old_lon = 0;
+    SetTripDist(0.0);
+}

@@ -22,5 +22,6 @@ namespace winrt::NMEA_Relay_NT::implementation
         std::thread tcpKeepAliveThread;
         std::thread appPulseThread;
         std::thread queueProcessingThread;
+        std::thread PipeServerLoopThread;
     };
 }

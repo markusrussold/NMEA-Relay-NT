@@ -9,6 +9,8 @@
 std::string getRoamingAppDataFolder();
 bool isServerAvailable(const std::string& ipAddressOrHostname);
 
+void PipeServerLoop();
+
 void appPulse();
 
 void queueProcessing();
@@ -58,3 +60,13 @@ std::wstring ConvertToDMS(double decimalDegrees, bool isLatitude);
 SOCKET tcp_connect_to_server(const char* server_hostname, int server_port);
 
 int sendAISMessagePosition(std::string foreignPosReport);
+
+std::string WStringToUtf8(const std::wstring& wstr);
+
+double DegreesToRadians(double degrees);
+
+double CalculateDistanceNm(double lat1, double lon1, double lat2, double lon2);
+
+std::string FormatDoubleForGermanLocale(double value, int precision);
+
+std::wstring FormatDoubleForGermanLocaleW(double value, int precision);

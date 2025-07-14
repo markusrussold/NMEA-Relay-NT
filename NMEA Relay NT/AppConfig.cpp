@@ -47,6 +47,7 @@ bool AppConfig::Load() {
             else if (key == "log_gpsdata") log_gpsdata = std::stoi(value);
             else if (key == "gps_max_data_age_seconds") gps_max_data_age_seconds = std::stoi(value);
             else if (key == "send_pos_reports") send_pos_reports = std::stoi(value);
+            else if (key == "tripdist") tripdist = std::stod(value);
         }
     }
 
@@ -80,9 +81,23 @@ bool AppConfig::Save() {
     outfile << "log_gpsdata=" << log_gpsdata << "\n";
     outfile << "gps_max_data_age_seconds=" << gps_max_data_age_seconds << "\n";
     outfile << "send_pos_reports=" << send_pos_reports << "\n";
+    outfile << "tripdist=" << tripdist << "\n";
 
     outfile.close();
     return true;
+}
+
+double AppConfig::GetTripDistance() const {
+    std::lock_guard<std::mutex> lock(configMutex);
+    return tripdist;
+}
+
+void AppConfig::SetTripDistance(double value) {
+    {
+        std::lock_guard<std::mutex> lock(configMutex);
+        tripdist = value;
+    }
+    Save();
 }
 
 // Ship Name
@@ -311,9 +326,10 @@ void AppConfig::ApplyToWindow()
     auto myOpenCpnServer = OpenCpnServer;
     auto myOpenCpnPort = OpenCpnPort;
     auto myship_status = ship_status;
+    auto mytripdist = tripdist;
 
     auto dispatcher = g_mainWindow.DispatcherQueue();
-    dispatcher.TryEnqueue([myship_name, myship_dest, myserver_name, myserver_port, myapi_key, mycallSign, myOpenCpnServer, myOpenCpnPort, myship_status]() {
+    dispatcher.TryEnqueue([myship_name, myship_dest, myserver_name, myserver_port, myapi_key, mycallSign, myOpenCpnServer, myOpenCpnPort, myship_status, mytripdist]() {
         auto impl = winrt::get_self<winrt::NMEA_Relay_NT::implementation::MainWindow>(g_mainWindow);
 
         impl->SetButtonStatus(myship_status);
@@ -325,6 +341,7 @@ void AppConfig::ApplyToWindow()
         impl->SetKey(winrt::to_hstring(myapi_key));
         impl->SetOpenCPN(winrt::to_hstring(myOpenCpnServer));
         impl->SetOpenCPNPort(winrt::to_hstring(std::to_string(myOpenCpnPort)));
+        impl->SetTripDistanceText(mytripdist);
     });
 }
 

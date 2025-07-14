@@ -23,6 +23,8 @@
 #include <iomanip>
 #include <winrt/Windows.UI.Popups.h>
 #include "version.h"
+#include "winrt/Microsoft.UI.Xaml.Controls.h"
+#include <codecvt>
 
 using namespace winrt;
 using namespace winrt::Microsoft::UI::Xaml;
@@ -221,9 +223,54 @@ namespace winrt::NMEA_Relay_NT::implementation
     {
         if (e.Key() == winrt::Windows::System::VirtualKey::Enter)
         {
-            auto message = MessageBox().Text();
-            OutputDebugStringW((L"Nachricht: " + std::wstring(message) + L"\n").c_str());
+            auto now = std::chrono::system_clock::now();
+            std::time_t now_time = std::chrono::system_clock::to_time_t(now);
+
+            std::tm tm_buf;
+            localtime_s(&tm_buf, &now_time);
+
+            std::ostringstream oss;
+            oss << std::put_time(&tm_buf, "%Y-%m-%d %H:%M:%S");
+
+            std::string mysql_formatted_timestamp = oss.str();
+
+            // 1️⃣ Get raw input from the UI
+            std::wstring rawMessage = MessageBox().Text().c_str();
+
+            // 2️⃣ Remove all ';' characters
+            rawMessage.erase(std::remove(rawMessage.begin(), rawMessage.end(), L';'), rawMessage.end());
+
+            // 4️⃣ Get lat/lon from GPSData
+            double lat = GPSData.GetLatitude();
+            double lon = GPSData.GetLongitude();
+
+            // 5️⃣ Convert cleaned user message to std::string
+            std::string userMessage = winrt::to_string(rawMessage);
+
+            if (userMessage.empty() || std::all_of(userMessage.begin(), userMessage.end(), isspace))
+            {
+                logToDebugger("Message was empty, not sending.");
+            }
+            else
+            {
+                // 6️⃣ Format embedded message
+                std::ostringstream message;
+                message << "20;" << g_config.GetApiKey() << ";"
+                    << mysql_formatted_timestamp << ";"
+                    << std::setprecision(12) << lat << ";"
+                    << std::setprecision(12) << lon << ";"
+                    << userMessage;
+
+                // 7️⃣ Push to queue (thread-safe if needed)
+                reportQueue.push(message.str());
+                SetFooterCounter(reportQueue.size());
+                logToDebugger("Message queued: ", message.str());
+            }
+
+            // 9️⃣ Clear the input box
             MessageBox().Text(L"");
+
+            // 🔟 Mark handled
             e.Handled(true);
         }
     }
@@ -342,10 +389,29 @@ namespace winrt::NMEA_Relay_NT::implementation
         }
     }
 
-    void MainWindow::TestButton_Click(winrt::Windows::Foundation::IInspectable const& sender, winrt::Microsoft::UI::Xaml::RoutedEventArgs const& e)
+    winrt::Windows::Foundation::IAsyncAction MainWindow::ResetTripdistanzButton_Click(
+        winrt::Windows::Foundation::IInspectable const& sender,
+        winrt::Microsoft::UI::Xaml::RoutedEventArgs const& e)
     {
-        ShipRotation().Angle(180);
-        SetSRVIndicatorRed();
+        winrt::Microsoft::UI::Xaml::Controls::ContentDialog dialog;
+        dialog.XamlRoot(ResetTripdistanzButton().XamlRoot()); // oder ein anderes sichtbares UI-Element
+        dialog.Title(box_value(L"Bestätigung"));
+        dialog.Content(box_value(L"Sind Sie wirklich sicher den Tripdistanz-Zähler auf 0 stellen zu wollen?"));
+        dialog.PrimaryButtonText(L"Ja, zurücksetzen");
+        dialog.CloseButtonText(L"Nein, abbrechen");
+
+        auto result = co_await dialog.ShowAsync();
+
+        if (result == winrt::Microsoft::UI::Xaml::Controls::ContentDialogResult::Primary) {
+            double oldDistance = GPSData.GetTripDist();
+            GPSData.ResetTripDist();
+            g_loggerEvents.LogMessage("Tripdistanz zurückgesetzt. Wert war: " + std::to_string(oldDistance), Logger::LOG_INFO);
+            logToDebugger("Tripdistanz zurückgesetzt");
+        }
+        else {
+            g_loggerEvents.LogMessage("Tripdistanz zurücksetzen abgebrochen", Logger::LOG_INFO);
+            logToDebugger("Tripdistanz zurücksetzen abgebrochen");
+        }
     }
 
     void MainWindow::ClearStatusHighlights()
@@ -426,6 +492,24 @@ namespace winrt::NMEA_Relay_NT::implementation
         );
     }
 
+    void MainWindow::SetTripDistanceText(double value)
+    {
+        std::wstringstream stream;
+
+        try {
+            // Versuche, deutsche Locale zu setzen (für Komma statt Punkt)
+            std::locale germanLocale("de_DE.UTF-8");
+            stream.imbue(germanLocale);
+        }
+        catch (const std::runtime_error&) {
+            // Fallback: Standardlocale (mit Punkt)
+            stream.imbue(std::locale::classic());
+        }
+
+        stream << std::fixed << std::setprecision(4) << value;
+        TripDistanceValue().Text(winrt::hstring(stream.str()));
+    }
+
     // Setters
     void MainWindow::SetBoatName(winrt::hstring const& value) {
         BoatNameTextBox().Text(value);
@@ -471,11 +555,8 @@ namespace winrt::NMEA_Relay_NT::implementation
         // Setze den Balken-Wert
         SogBar().Value(sogValue);
 
-        // Formatiere den Text schön mit 2 Nachkommastellen + Einheit
-        std::wstringstream stream;
-        stream << std::fixed << std::setprecision(2) << sogValue << L" kn";
-
-        SogValueText().Text(winrt::hstring(stream.str()));
+        std::wstring result = FormatDoubleForGermanLocaleW(sogValue, 2);
+        SogValueText().Text(winrt::hstring(result));
     }
 
     void MainWindow::SetCOG(double cogValue)
@@ -583,6 +664,75 @@ namespace winrt::NMEA_Relay_NT::implementation
         ss << value;
         FooterCounter().Text(winrt::hstring(ss.str()));
     }
+
+    fire_and_forget MainWindow::TripDistanceEdit_Tapped(IInspectable const&, winrt::Microsoft::UI::Xaml::Input::TappedRoutedEventArgs const&)
+    {
+        using namespace winrt::Microsoft::UI::Xaml::Controls;
+        using namespace winrt::Windows::System;
+
+        auto lifetime = get_strong(); // Sichert `this` während async Aufruf
+
+        ContentDialog dialog;
+        dialog.Title(box_value(L"Tripdistanz bearbeiten"));
+
+        double currentTripDist = GPSData.GetTripDist();
+        double originalTripDis = currentTripDist;
+
+        std::wstring formattedValue = FormatDoubleForGermanLocaleW(currentTripDist, 4);
+
+        TextBox inputBox;
+        inputBox.Text(winrt::hstring(formattedValue));
+        inputBox.PlaceholderText(L"Tripdistanz in nm");
+        inputBox.Margin({ 0, 12, 0, 0 });
+
+        inputBox.Loaded([inputBox](auto const&, auto const&) {
+            inputBox.SelectAll();
+        });
+
+        StackPanel panel;
+        panel.Children().Append(inputBox);
+        dialog.Content(panel);
+
+        dialog.PrimaryButtonText(L"Speichern");
+        dialog.CloseButtonText(L"Abbrechen");
+        dialog.DefaultButton(ContentDialogButton::Primary);
+        dialog.XamlRoot(this->Content().XamlRoot());
+
+        // Shared logic to process input
+        auto processInput = [inputBox, originalTripDis]() {
+            std::wstring input = inputBox.Text().c_str();
+            std::replace(input.begin(), input.end(), L',', L'.');
+
+            try {
+                double newValue = std::stod(input);
+                GPSData.SetTripDist(newValue);
+                g_loggerEvents.LogMessage(
+                    "Tripdistanz manuell geändert von " +
+                    std::to_string(originalTripDis) +
+                    " auf " + std::to_string(newValue),
+                    Logger::LOG_INFO
+                );
+            }
+            catch (...) {
+                g_loggerEvents.LogMessage("Ungültiger Tripdistanz-Wert eingegeben", Logger::LOG_INFO);
+            }
+        };
+
+        // ENTER schließt Dialog programmatisch
+        inputBox.KeyDown([&dialog, processInput](auto const&, winrt::Microsoft::UI::Xaml::Input::KeyRoutedEventArgs const& e) {
+            if (e.Key() == VirtualKey::Enter) {
+                processInput();
+                dialog.Hide();
+                e.Handled(true);
+            }
+        });
+
+        ContentDialogResult result = co_await dialog.ShowAsync();
+
+        if (result == ContentDialogResult::Primary)
+        {
+            processInput();
+        }
+    }
+
 }
-
-

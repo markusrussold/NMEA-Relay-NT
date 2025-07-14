@@ -43,7 +43,13 @@ class gpsData
             uint8_t satellite_count;
             bool rmc_valid;
             bool data_reliability;
+            double tripdist;
         };
+
+        double old_lat;
+        double old_lon;
+        double old_tripdist;
+        bool old_data_wasreliable;
 
         main_data_struct main_data;
         std::vector<pos_data_struct> pos_data_list;
@@ -63,6 +69,12 @@ public:
         main_data.sog = -1.0;
         main_data.rmc_valid = false;
         main_data.data_reliability = false;
+        main_data.tripdist = 0.0;
+
+        old_lat = 0.0;
+        old_lon = 0.0;
+        old_data_wasreliable = false;
+        old_tripdist = 0.0;
     }
 
     std::pair<double, double> ProvideSmoothenedPosition(const std::vector<pos_data_struct>& pos_data_list) const;
@@ -71,6 +83,7 @@ public:
     void NotifyLatLon();
     void NotifyHdop();
     void NotifyUtc();
+    void NotifyTripDist();
     void NotifyAlt();
     void NotifyFix();
     void NotifySatelliteCount();
@@ -86,6 +99,7 @@ public:
     //void SetLongtitude(double newLon);
     void SetHdop(double newHdop);
     void SetUtc(double newUtc);
+    void SetTripDist(double newTripDist);
     void SetAlt(double newAlt);
     void SetFix(uint8_t newFix);
     void SetSatelliteCount(uint8_t newSatelliteCount);
@@ -100,6 +114,7 @@ public:
     double GetLongitude() const;
     double GetHdop() const;
     double GetUtc() const;
+    double GetTripDist() const;
     double GetAlt() const;
     uint8_t GetFix() const;
     uint8_t GetSatelliteCount() const;
@@ -116,6 +131,8 @@ public:
     int GetDataAge() const;
     void NotifyDataAge();
     std::string GetFullStatusReport();
+    void CalculateAndUpdateDistance();
+    void ResetTripDist();
     int CalculateTimeDifferenceInSeconds();
     double GetCurrentUtcTimeAsDouble();
 };

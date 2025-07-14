@@ -150,8 +150,10 @@
                 <!-- Status buttons -->
                 <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
                         <!-- Links: Symbolbuttons -->
+                        <ColumnDefinition Width="*"/>
+                        <!-- Rechts: TripDistanz -->
                         <ColumnDefinition Width="Auto"/>
                         <!-- Rechts: TestButton -->
                     </Grid.ColumnDefinitions>
@@ -204,15 +206,44 @@
                         </Button>
                     </StackPanel>
 
+                    <StackPanel Grid.Column="1"
+            Orientation="Vertical"
+            Margin="12,0,0,0"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center">
+                        <TextBlock Text="Tripdistanz"
+                            Tapped="TripDistanceEdit_Tapped"
+                            HorizontalAlignment="Center"
+                            FontWeight="Bold"
+                            FontSize="12"/>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock x:Name="TripDistanceValue"
+                                Tapped="TripDistanceEdit_Tapped"
+                                Text="000,000"
+                                FontSize="18"
+                                FontWeight="Bold"/>
+                            <TextBlock Text=" nm"
+                                Tapped="TripDistanceEdit_Tapped"
+                                Margin="4,0,0,0"
+                                FontSize="12"
+                                VerticalAlignment="Bottom"/>
+                        </StackPanel>
+                    </StackPanel>
+
+
                     <!-- TestButton rechts -->
-                    <Button Grid.Column="1" x:Name="TestButton" Click="TestButton_Click"
+                    <Button Grid.Column="2" x:Name="ResetTripdistanzButton" Click="ResetTripdistanzButton_Click"
                         Width="100" Height="65"
-                        Background="LightGray"
+                        Background="White"
                         BorderThickness="1"
                         Padding="0"
-                        Content="Test"
                         Foreground="Black"
-                        VerticalAlignment="Center"/>
+                        FontWeight="Bold"
+                        VerticalAlignment="Center">
+                        <TextBlock Text="Reset&#x0a;Tripdistanz"
+                            TextAlignment="Center"
+                            VerticalAlignment="Center"/>
+                    </Button>
                 </Grid>
 
 

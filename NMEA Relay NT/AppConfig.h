@@ -14,6 +14,10 @@ public:
     bool Load();
     bool Save();
 
+    double GetTripDistance() const;
+
+    void SetTripDistance(double value);
+
     void ApplyToWindow();
 
     // Ship Name
@@ -83,19 +87,20 @@ private:
     // Die Felder selbst
     std::string ship_name = "";
     std::string ship_dest = "";
-    std::string server_name = "";
-    int server_port = -1;
-    int ship_status = -1;
+    std::string server_name = "mrussold.com";
+    int server_port = 1234;
+    int ship_status = 0;
     std::string api_key = "";
     std::string sailing_message = "";
     std::string engine_message = "";
     std::string callSign = "";
     std::string OpenCpnServer = "127.0.0.1";
-    int OpenCpnPort = 9999;
+    int OpenCpnPort = 2947;
     int log_event_level = 2;
     int log_gpsdata = 1;
     int gps_max_data_age_seconds = MAX_DATA_AGE_SECONDS;
     int send_pos_reports = 1;
+    double tripdist = 0.0;
 
     void UpdateLoggers();
 };

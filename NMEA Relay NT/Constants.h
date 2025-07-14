@@ -10,3 +10,9 @@
 #define QUEUE_PROCESSING_WAITING_MSEC 50
 #define TCP_RECONNECT_INTERVAL_MS 5000
 #define PORT_TCP_SERVER 8020 // Remote port of Server for TCP Connection
+
+constexpr double kEarthRadiusNm = 3440.065; // Earth's radius in nautical miles
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif

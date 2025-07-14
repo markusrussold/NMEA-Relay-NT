@@ -16,6 +16,7 @@ public:
     virtual void UpdateCog(float cog) = 0;
     virtual void UpdateDataReliability(bool data_reliability) = 0;
     virtual void UpdateDataAge(int newDataAge) = 0;
+    virtual void UpdateTripDist(double tripdist) = 0;
 
 };
 

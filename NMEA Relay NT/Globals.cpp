@@ -3,9 +3,13 @@
 #include "HelperFunctions.h"
 #include "ReportQueue.h"
 #include "gpsData.h"
+#include <condition_variable>
+#include <mutex>
 
 // globale Steuerflagge für Threads
 std::atomic<bool> g_shouldStopThreads = false;
+std::condition_variable g_cv;
+std::mutex g_thread_mutex;
 
 // globale Referenz auf das MainWindow
 winrt::NMEA_Relay_NT::MainWindow g_mainWindow{ nullptr };

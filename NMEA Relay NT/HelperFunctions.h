@@ -70,3 +70,5 @@ double CalculateDistanceNm(double lat1, double lon1, double lat2, double lon2);
 std::string FormatDoubleForGermanLocale(double value, int precision);
 
 std::wstring FormatDoubleForGermanLocaleW(double value, int precision);
+
+void StopThreads();

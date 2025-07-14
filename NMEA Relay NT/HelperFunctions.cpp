@@ -199,6 +199,182 @@ bool isServerAvailable(const std::string& ipAddressOrHostname)
     return dwRetVal != 0;
 }
 
+//void PipeServerLoop()
+//{
+//    struct VesselState {
+//        std::wstring latlon = L"39° 53' 34.00\" N   4° 16' 21.89\" E";
+//        double cog = 120.5;
+//        double tripdist = 34.261;
+//        std::string status = "UNKNOWN";
+//    };
+//
+//    g_loggerEvents.LogMessage("thread PipeServerLoopThread started", 2);
+//    logToDebugger("thread PipeServerLoopThread started");
+//
+//    while (!g_shouldStopThreads)
+//    {
+//        HANDLE hPipe = CreateNamedPipe(
+//            L"\\\\.\\pipe\\NMEA_PIPE",
+//            PIPE_ACCESS_DUPLEX,
+//            PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT,
+//            PIPE_UNLIMITED_INSTANCES,
+//            512, 512,
+//            0,
+//            NULL
+//        );
+//
+//        if (hPipe == INVALID_HANDLE_VALUE) {
+//            logToDebugger("CreateNamedPipe failed. Error: ", GetLastError());
+//            break;
+//        }
+//
+//        BOOL connected = ConnectNamedPipe(hPipe, NULL) ? TRUE : (GetLastError() == ERROR_PIPE_CONNECTED);
+//
+//        if (connected) {
+//            // Capture state per client
+//            VesselState state;
+//
+//            // Lambda to handle the client
+//            std::thread([hPipe, state]() mutable {
+//                char buffer[128] = {};
+//                DWORD bytesRead = 0;
+//
+//                BOOL result = ReadFile(hPipe, buffer, sizeof(buffer) - 1, &bytesRead, NULL);
+//                if (!result || bytesRead == 0) {
+//                    DisconnectNamedPipe(hPipe);
+//                    CloseHandle(hPipe);
+//                    return;
+//                }
+//
+//                std::string command(buffer, bytesRead);
+//                command.erase(std::remove(command.begin(), command.end(), '\r'), command.end());
+//                command.erase(std::remove(command.begin(), command.end(), '\n'), command.end());
+//
+//                logToDebugger("Pipe Command received: ", command);
+//                DWORD bytesWritten = 0;
+//
+//                if (command == "GET_LATLON") {
+//                    try {
+//                        std::wstring positionText = L"";
+//                        //std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+//                        //std::string reply = converter.to_bytes(state.latlon);
+//
+//                        if (GPSData.GetDataReliability())
+//                        {
+//                            auto latDMS = ConvertToDMS(GPSData.GetLatitude(), true);
+//                            auto lonDMS = ConvertToDMS(GPSData.GetLongitude(), false);
+//
+//                            positionText = latDMS + L"   " + lonDMS;
+//                        }
+//
+//                        std::string reply = WStringToUtf8(positionText);
+//
+//                        WriteFile(hPipe, reply.c_str(), static_cast<DWORD>(reply.size()), &bytesWritten, NULL);
+//                    }
+//                    catch (const std::exception& e) {
+//                        logToDebugger("Pipe Handler - UTF-8 encoding error: ", e.what());
+//                    }
+//                }
+//                else if (command == "GET_COG") {
+//                    double COGData = 0.0;
+//
+//                    if (GPSData.GetDataReliability()) {
+//                        COGData = GPSData.GetCog();
+//                    }
+//
+//                    std::string reply = FormatDoubleForGermanLocale(COGData, 4);
+//                    WriteFile(hPipe, reply.c_str(), static_cast<DWORD>(reply.size()), &bytesWritten, NULL);
+//                }
+//                else if (command == "GET_TRIPDIST") {
+//                    double tripDistData = 0.0;
+//
+//                    if (GPSData.GetDataReliability()) {
+//                        tripDistData = GPSData.GetTripDist();
+//                    }
+//
+//                    std::string reply = FormatDoubleForGermanLocale(tripDistData, 4);
+//                    WriteFile(hPipe, reply.c_str(), static_cast<DWORD>(reply.size()), &bytesWritten, NULL);
+//                }
+//                else if (command == "SET_ENGINE") {
+//                    if (g_mainWindow) {
+//                        auto dispatcher = g_mainWindow.DispatcherQueue();
+//                        dispatcher.TryEnqueue([]()
+//                            {
+//                                auto impl = winrt::get_self<winrt::NMEA_Relay_NT::implementation::MainWindow>(g_mainWindow);
+//                                impl->EngineButton_Click(nullptr, nullptr);
+//                            });
+//                    }
+//
+//                    logToDebugger("Pipe Handler - Status updated to ENGINE");
+//                }
+//                else if (command == "SET_SAIL") {
+//                    if (g_mainWindow) {
+//                        auto dispatcher = g_mainWindow.DispatcherQueue();
+//                        dispatcher.TryEnqueue([]()
+//                            {
+//                                auto impl = winrt::get_self<winrt::NMEA_Relay_NT::implementation::MainWindow>(g_mainWindow);
+//                                impl->SailButton_Click(nullptr, nullptr);
+//                            });
+//                    }
+//
+//                    logToDebugger("Pipe Handler - Status updated to SAIL");
+//                }
+//                else if (command == "SET_DOCKED") {
+//                    if (g_mainWindow) {
+//                        auto dispatcher = g_mainWindow.DispatcherQueue();
+//                        dispatcher.TryEnqueue([]()
+//                            {
+//                                auto impl = winrt::get_self<winrt::NMEA_Relay_NT::implementation::MainWindow>(g_mainWindow);
+//                                impl->DockedButton_Click(nullptr, nullptr);
+//                            });
+//                    }
+//
+//                    logToDebugger("Pipe Handler - Status updated to DOCKED");
+//                }
+//                else if (command == "SET_ANCHOR") {
+//                    if (g_mainWindow) {
+//                        auto dispatcher = g_mainWindow.DispatcherQueue();
+//                        dispatcher.TryEnqueue([]()
+//                            {
+//                                auto impl = winrt::get_self<winrt::NMEA_Relay_NT::implementation::MainWindow>(g_mainWindow);
+//                                impl->AnchorButton_Click(nullptr, nullptr);
+//                            });
+//                    }
+//
+//                    logToDebugger("Pipe Handler - Status updated to ANCHOR");
+//                }
+//                else if (command == "SET_ENGINESAIL") {
+//                    if (g_mainWindow) {
+//                        auto dispatcher = g_mainWindow.DispatcherQueue();
+//                        dispatcher.TryEnqueue([]()
+//                            {
+//                                auto impl = winrt::get_self<winrt::NMEA_Relay_NT::implementation::MainWindow>(g_mainWindow);
+//                                impl->SailAndEngineButton_Click(nullptr, nullptr);
+//                            });
+//                    }
+//
+//                    logToDebugger("Pipe Handler - Status updated to ENGINESAIL");
+//                }
+//                else {
+//                    std::string unknown = "UNKNOWN COMMAND";
+//                    WriteFile(hPipe, unknown.c_str(), static_cast<DWORD>(unknown.size()), &bytesWritten, NULL);
+//                    logToDebugger("Pipe Handler - Unknown command.");
+//                }
+//
+//                FlushFileBuffers(hPipe);
+//                DisconnectNamedPipe(hPipe);
+//                CloseHandle(hPipe);
+//                }).detach(); // 🚀 Launch and detach the lambda thread
+//        }
+//        else {
+//            CloseHandle(hPipe);
+//        }
+//    }
+//
+//    g_loggerEvents.LogMessage("thread PipeServerLoopThread ended", 2);
+//    logToDebugger("thread PipeServerLoopThread ended");
+//}
+
 void PipeServerLoop()
 {
     struct VesselState {
@@ -377,14 +553,22 @@ void PipeServerLoop()
 
 void appPulse()
 {
+    std::unique_lock<std::mutex> lock(g_thread_mutex);
+
     g_loggerEvents.LogMessage("thread appPulse started", 2);
     logToDebugger("thread appPulse started");
 
     while (!g_shouldStopThreads)
     {
+        lock.unlock();
         GPSData.CheckDataAge();
         GPSData.CalculateAndUpdateDistance();
-        std::this_thread::sleep_for(std::chrono::milliseconds(APP_PULSE_WAITING_MSEC));
+        lock.lock();
+
+        //std::this_thread::sleep_for(std::chrono::milliseconds(APP_PULSE_WAITING_MSEC));
+        g_cv.wait_for(lock, std::chrono::milliseconds(APP_PULSE_WAITING_MSEC), [] {
+            return g_shouldStopThreads.load();
+        });
     }
 
     g_loggerEvents.LogMessage("thread appPulse ended", 2);
@@ -393,11 +577,15 @@ void appPulse()
 
 void queueProcessing()
 {
+    std::unique_lock<std::mutex> lock(g_thread_mutex);
+
     g_loggerEvents.LogMessage("thread queueProcessing started", 2);
     logToDebugger("thread queueProcessing started");
 
     while (!g_shouldStopThreads)
     {
+        lock.unlock();
+
         while (isServerAvailable(g_config.GetServerName())) {
             std::string message;
             if (reportQueue.try_pop(message)) {
@@ -421,7 +609,12 @@ void queueProcessing()
             std::this_thread::sleep_for(std::chrono::milliseconds(20));
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(QUEUE_PROCESSING_WAITING_MSEC));
+        lock.lock();
+
+        //std::this_thread::sleep_for(std::chrono::milliseconds(QUEUE_PROCESSING_WAITING_MSEC));
+        g_cv.wait_for(lock, std::chrono::milliseconds(QUEUE_PROCESSING_WAITING_MSEC), [] {
+            return g_shouldStopThreads.load();
+        });
     }
 
     g_loggerEvents.LogMessage("thread queueProcessing ended", 2);
@@ -430,11 +623,15 @@ void queueProcessing()
 
 void send_posreport()
 {
+    std::unique_lock<std::mutex> lock(g_thread_mutex);
+
     g_loggerEvents.LogMessage("thread send_posreport started", 2);
     logToDebugger("thread send_posreport started", true);
 
     while (!g_shouldStopThreads)
     {
+        lock.unlock();
+
         if (g_config.GetSendPosReports() == 1 && GPSData.GetDataReliability()) {
             auto now = std::chrono::system_clock::now();
             std::time_t now_time = std::chrono::system_clock::to_time_t(now);
@@ -485,25 +682,39 @@ void send_posreport()
             }
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(POS_REPORT_WAITING_MSEC));
+        lock.lock();
+
+        //std::this_thread::sleep_for(std::chrono::milliseconds(POS_REPORT_WAITING_MSEC));
+        g_cv.wait_for(lock, std::chrono::milliseconds(POS_REPORT_WAITING_MSEC), [] {
+            return g_shouldStopThreads.load();
+        });
     }
 
     g_loggerEvents.LogMessage("thread send_posreport ended", 2);
-    logToDebugger("thread send_posreport ended", true);
+    logToDebugger("thread send_posreport ended");
 }
 
 void sendHeartBeat()
 {
+    std::unique_lock<std::mutex> lock(g_thread_mutex);
+
     g_loggerEvents.LogMessage("thread sendHeartBeat started", Logger::LOG_INFO);
     logToDebugger("thread sendHeartBeat started");
 
     while (!g_shouldStopThreads)
     {
+        lock.unlock();
+
         std::ostringstream message;
         message << "10;" << g_config.GetApiKey();
         send_udp_message(g_config.GetServerName(), g_config.GetServerPort(), message.str());
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(HEARTBEAT_FREQUENCY_MSECONDS));
+        lock.lock();
+
+        //std::this_thread::sleep_for(std::chrono::milliseconds(HEARTBEAT_FREQUENCY_MSECONDS));
+        g_cv.wait_for(lock, std::chrono::milliseconds(HEARTBEAT_FREQUENCY_MSECONDS), [] {
+            return g_shouldStopThreads.load();
+        });
     }
 
     g_loggerEvents.LogMessage("thread sendHeartBeat ended", Logger::LOG_INFO);
@@ -512,6 +723,7 @@ void sendHeartBeat()
 
 void checkRemoteServer()
 {
+    std::unique_lock<std::mutex> lock(g_thread_mutex);
     bool serverAvailability = false;
 
     g_loggerEvents.LogMessage("thread checkRemoteServer started", Logger::LOG_INFO);
@@ -519,6 +731,8 @@ void checkRemoteServer()
 
     while (!g_shouldStopThreads)
     {
+        lock.unlock();
+
         serverAvailability = isServerAvailable(g_config.GetServerName());
 
         //logToDebugger("Serveravailability: ", serverAvailability);
@@ -540,7 +754,12 @@ void checkRemoteServer()
                 });
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(FREQUENCY_CHECK_SERVER));
+        lock.lock();
+
+        //std::this_thread::sleep_for(std::chrono::milliseconds(FREQUENCY_CHECK_SERVER));
+        g_cv.wait_for(lock, std::chrono::milliseconds(FREQUENCY_CHECK_SERVER), [] {
+            return g_shouldStopThreads.load();
+        });
     }
 
     g_loggerEvents.LogMessage("thread checkRemoteServer ended", Logger::LOG_INFO);
@@ -742,12 +961,16 @@ void ListenUDP()
 
 void tcp_keep_connection_alive()
 {
+    std::unique_lock<std::mutex> lock(g_thread_mutex);
+
     SOCKET sock = INVALID_SOCKET;
     auto last_restart_time = std::chrono::steady_clock::now();
     std::string recv_buffer;  // Buffer to accumulate partial messages
 
     while (!g_shouldStopThreads)
     {
+        lock.unlock();
+
         // Check if it's time to restart the connection
         auto now = std::chrono::steady_clock::now();
         if (sock != INVALID_SOCKET && std::chrono::duration_cast<std::chrono::milliseconds>(now - last_restart_time).count() >= TCP_RECONNECT_INTERVAL_MS) {
@@ -818,9 +1041,14 @@ void tcp_keep_connection_alive()
             }
         }
 
+        lock.lock();
+
         // If not connected, wait and try to reconnect
         if (sock == INVALID_SOCKET) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // Wait 1 second before retrying
+            //std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // Wait 1 second before retrying
+            g_cv.wait_for(lock, std::chrono::milliseconds(1000), [] {
+                return g_shouldStopThreads.load();
+            });
         }
     }
 }
@@ -1143,4 +1371,10 @@ std::wstring FormatDoubleForGermanLocaleW(double value, int precision = 4) {
     }
     stream << std::fixed << std::setprecision(precision) << value;
     return stream.str();
+}
+
+void StopThreads()
+{
+    g_shouldStopThreads = true;
+    g_cv.notify_all();
 }

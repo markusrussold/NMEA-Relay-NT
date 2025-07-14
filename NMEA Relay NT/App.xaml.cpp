@@ -72,7 +72,11 @@ namespace winrt::NMEA_Relay_NT::implementation
 
         // Shutdown-Hook
         myWindow.Closed([this](auto&&, auto&&) {
-            g_shouldStopThreads = true;
+            g_loggerEvents.LogMessage("Beginne Threads zu beenden", 2);
+            TerminateThread(PipeServerLoopThread.native_handle(), 0);
+            g_loggerEvents.LogMessage("Beendigung Threads zweite Stufe", 2);
+            StopThreads();
+            g_loggerEvents.LogMessage("Alle Threads beendet", 2);
 
             if (posReportThread.joinable()) posReportThread.join();
             if (heartbeatThread.joinable()) heartbeatThread.join();
@@ -81,7 +85,7 @@ namespace winrt::NMEA_Relay_NT::implementation
             if (tcpKeepAliveThread.joinable()) tcpKeepAliveThread.join();
             if (appPulseThread.joinable()) appPulseThread.join();
             if (queueProcessingThread.joinable()) queueProcessingThread.join();
-            if (PipeServerLoopThread.joinable()) PipeServerLoopThread.join();
+            //if (PipeServerLoopThread.joinable()) PipeServerLoopThread.join();
 
             g_loggerEvents.LogMessage("App shutdown via Window.Closed", Logger::LOG_INFO);
             logToDebugger("App shutdown via Window.Closed");

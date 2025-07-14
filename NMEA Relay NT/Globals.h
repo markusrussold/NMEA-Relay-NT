@@ -8,9 +8,13 @@
 #include "Constants.h"
 #include "gpsData.h"
 #include "ReportQueue.h"
+#include <condition_variable>
+#include <mutex>
 
 // globale Flags
 extern std::atomic<bool> g_shouldStopThreads;
+extern std::condition_variable g_cv;
+extern std::mutex g_thread_mutex;
 
 // globale Objekte
 extern winrt::NMEA_Relay_NT::MainWindow g_mainWindow;

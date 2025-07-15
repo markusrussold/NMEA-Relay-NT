@@ -24,6 +24,7 @@
             <MenuBarItem Title="Men&#252;">
                 <MenuFlyoutItem Text="Konfig-Pfad &#246;ffnen" Click="OpenConfigPath_Click"/>
                 <MenuFlyoutItem Text="Version und Copyrights" Click="Version_Click"/>
+                <MenuFlyoutItem Text="Ankerwache" Click="AnchorWatch_Click"/>
                 <MenuFlyoutItem Text="GPS Rohdaten" Click="ShowGpsDebugInfo_Click"/>
                 <MenuFlyoutItem Text="Beenden" Click="Exit_Click"/>
             </MenuBarItem>

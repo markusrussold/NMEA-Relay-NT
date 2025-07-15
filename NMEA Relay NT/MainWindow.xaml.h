@@ -56,6 +56,7 @@ namespace winrt::NMEA_Relay_NT::implementation
             winrt::Microsoft::UI::Xaml::Controls::TextChangedEventArgs const& e);
 
         void SetSRVIndicatorGreen();
+        void AnchorWatch_Click(winrt::Windows::Foundation::IInspectable const&, winrt::Microsoft::UI::Xaml::RoutedEventArgs const&);
         void SetSRVIndicatorRed();
 
         void SetTripDistanceText(double value);
@@ -84,6 +85,7 @@ namespace winrt::NMEA_Relay_NT::implementation
 
     private:
         HWND GetWindowHandle();
+        //winrt::NMEA_Relay_NT::AnchorWatchWindow m_anchorWatchWindow{ nullptr };
     };
 }
 

@@ -156,6 +156,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AisProcessor.h" />
+    <ClInclude Include="AnchorWatchWindow.xaml.h">
+      <DependentUpon>AnchorWatchWindow.xaml</DependentUpon>
+      <SubType>Code</SubType>
+    </ClInclude>
     <ClInclude Include="AppConfig.h" />
     <ClInclude Include="Constants.h" />
     <ClInclude Include="framework.h" />
@@ -185,10 +189,17 @@
   </ItemGroup>
   <ItemGroup>
     <ApplicationDefinition Include="App.xaml" />
+    <Page Include="AnchorWatchWindow.xaml">
+      <SubType>Designer</SubType>
+    </Page>
     <Page Include="MainWindow.xaml" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AisProcessor.cpp" />
+    <ClCompile Include="AnchorWatchWindow.xaml.cpp">
+      <DependentUpon>AnchorWatchWindow.xaml</DependentUpon>
+      <SubType>Code</SubType>
+    </ClCompile>
     <ClCompile Include="AppConfig.cpp" />
     <ClCompile Include="gll.cpp" />
     <ClCompile Include="Globals.cpp" />
@@ -214,6 +225,10 @@
     <ClCompile Include="zda.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <Midl Include="AnchorWatchWindow.idl">
+      <DependentUpon>AnchorWatchWindow.xaml</DependentUpon>
+      <SubType>Code</SubType>
+    </Midl>
     <Midl Include="MainWindow.idl">
       <SubType>Code</SubType>
       <DependentUpon>MainWindow.xaml</DependentUpon>

@@ -1,0 +1,9 @@
+namespace NMEA_Relay_NT
+{
+    [default_interface]
+    runtimeclass AnchorWatchWindow : Microsoft.UI.Xaml.Window
+    {
+        AnchorWatchWindow();
+        Int32 MyProperty;
+    }
+}

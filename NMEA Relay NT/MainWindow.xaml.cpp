@@ -25,6 +25,7 @@
 #include "version.h"
 #include "winrt/Microsoft.UI.Xaml.Controls.h"
 #include <codecvt>
+#include "AnchorWatchWindow.xaml.h"
 
 using namespace winrt;
 using namespace winrt::Microsoft::UI::Xaml;
@@ -70,7 +71,7 @@ namespace winrt::NMEA_Relay_NT::implementation
         ShipRotation().Angle(0);
         SogBar().Value(0.0);
         SogValueText().Text(L"");
-        FooterCounter().Text(L"0");
+        FooterCounter().Text(L"");
         StatusBarFooterText().Text(L"");
         SRVIndicator().Background(SolidColorBrush(Colors::Red()));
 
@@ -735,6 +736,14 @@ namespace winrt::NMEA_Relay_NT::implementation
         {
             processInput();
         }
+    }
+
+    void winrt::NMEA_Relay_NT::implementation::MainWindow::AnchorWatch_Click(
+        winrt::Windows::Foundation::IInspectable const&,
+        winrt::Microsoft::UI::Xaml::RoutedEventArgs const&)
+    {
+        winrt::NMEA_Relay_NT::AnchorWatchWindow window;
+        window.Activate();
     }
 
 }

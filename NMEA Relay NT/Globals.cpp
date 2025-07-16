@@ -25,3 +25,4 @@ AppConfig g_config(getRoamingAppDataFolder() + "\\config.txt");
 ReportQueue reportQueue(getRoamingAppDataFolder());
 gpsData GPSData;
 
+inline winrt::NMEA_Relay_NT::AnchorWatchWindow g_anchorWatchWindow{ nullptr };

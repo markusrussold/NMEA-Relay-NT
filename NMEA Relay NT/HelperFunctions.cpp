@@ -163,8 +163,6 @@ bool isServerAvailable(const std::string& ipAddressOrHostname)
     addrinfo* result = nullptr;
     if (getaddrinfo(ipAddressOrHostname.c_str(), nullptr, &hints, &result) != 0)
     {
-        //g_loggerEvents.LogMessage("DNS failed : " + ipAddressOrHostname, Logger::LOG_ERROR);
-        //logToDebugger("DNS failed: ", ipAddressOrHostname.c_str());
         return false; // DNS failed
     }
 
@@ -198,182 +196,6 @@ bool isServerAvailable(const std::string& ipAddressOrHostname)
 
     return dwRetVal != 0;
 }
-
-//void PipeServerLoop()
-//{
-//    struct VesselState {
-//        std::wstring latlon = L"39° 53' 34.00\" N   4° 16' 21.89\" E";
-//        double cog = 120.5;
-//        double tripdist = 34.261;
-//        std::string status = "UNKNOWN";
-//    };
-//
-//    g_loggerEvents.LogMessage("thread PipeServerLoopThread started", 2);
-//    logToDebugger("thread PipeServerLoopThread started");
-//
-//    while (!g_shouldStopThreads)
-//    {
-//        HANDLE hPipe = CreateNamedPipe(
-//            L"\\\\.\\pipe\\NMEA_PIPE",
-//            PIPE_ACCESS_DUPLEX,
-//            PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT,
-//            PIPE_UNLIMITED_INSTANCES,
-//            512, 512,
-//            0,
-//            NULL
-//        );
-//
-//        if (hPipe == INVALID_HANDLE_VALUE) {
-//            logToDebugger("CreateNamedPipe failed. Error: ", GetLastError());
-//            break;
-//        }
-//
-//        BOOL connected = ConnectNamedPipe(hPipe, NULL) ? TRUE : (GetLastError() == ERROR_PIPE_CONNECTED);
-//
-//        if (connected) {
-//            // Capture state per client
-//            VesselState state;
-//
-//            // Lambda to handle the client
-//            std::thread([hPipe, state]() mutable {
-//                char buffer[128] = {};
-//                DWORD bytesRead = 0;
-//
-//                BOOL result = ReadFile(hPipe, buffer, sizeof(buffer) - 1, &bytesRead, NULL);
-//                if (!result || bytesRead == 0) {
-//                    DisconnectNamedPipe(hPipe);
-//                    CloseHandle(hPipe);
-//                    return;
-//                }
-//
-//                std::string command(buffer, bytesRead);
-//                command.erase(std::remove(command.begin(), command.end(), '\r'), command.end());
-//                command.erase(std::remove(command.begin(), command.end(), '\n'), command.end());
-//
-//                logToDebugger("Pipe Command received: ", command);
-//                DWORD bytesWritten = 0;
-//
-//                if (command == "GET_LATLON") {
-//                    try {
-//                        std::wstring positionText = L"";
-//                        //std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-//                        //std::string reply = converter.to_bytes(state.latlon);
-//
-//                        if (GPSData.GetDataReliability())
-//                        {
-//                            auto latDMS = ConvertToDMS(GPSData.GetLatitude(), true);
-//                            auto lonDMS = ConvertToDMS(GPSData.GetLongitude(), false);
-//
-//                            positionText = latDMS + L"   " + lonDMS;
-//                        }
-//
-//                        std::string reply = WStringToUtf8(positionText);
-//
-//                        WriteFile(hPipe, reply.c_str(), static_cast<DWORD>(reply.size()), &bytesWritten, NULL);
-//                    }
-//                    catch (const std::exception& e) {
-//                        logToDebugger("Pipe Handler - UTF-8 encoding error: ", e.what());
-//                    }
-//                }
-//                else if (command == "GET_COG") {
-//                    double COGData = 0.0;
-//
-//                    if (GPSData.GetDataReliability()) {
-//                        COGData = GPSData.GetCog();
-//                    }
-//
-//                    std::string reply = FormatDoubleForGermanLocale(COGData, 4);
-//                    WriteFile(hPipe, reply.c_str(), static_cast<DWORD>(reply.size()), &bytesWritten, NULL);
-//                }
-//                else if (command == "GET_TRIPDIST") {
-//                    double tripDistData = 0.0;
-//
-//                    if (GPSData.GetDataReliability()) {
-//                        tripDistData = GPSData.GetTripDist();
-//                    }
-//
-//                    std::string reply = FormatDoubleForGermanLocale(tripDistData, 4);
-//                    WriteFile(hPipe, reply.c_str(), static_cast<DWORD>(reply.size()), &bytesWritten, NULL);
-//                }
-//                else if (command == "SET_ENGINE") {
-//                    if (g_mainWindow) {
-//                        auto dispatcher = g_mainWindow.DispatcherQueue();
-//                        dispatcher.TryEnqueue([]()
-//                            {
-//                                auto impl = winrt::get_self<winrt::NMEA_Relay_NT::implementation::MainWindow>(g_mainWindow);
-//                                impl->EngineButton_Click(nullptr, nullptr);
-//                            });
-//                    }
-//
-//                    logToDebugger("Pipe Handler - Status updated to ENGINE");
-//                }
-//                else if (command == "SET_SAIL") {
-//                    if (g_mainWindow) {
-//                        auto dispatcher = g_mainWindow.DispatcherQueue();
-//                        dispatcher.TryEnqueue([]()
-//                            {
-//                                auto impl = winrt::get_self<winrt::NMEA_Relay_NT::implementation::MainWindow>(g_mainWindow);
-//                                impl->SailButton_Click(nullptr, nullptr);
-//                            });
-//                    }
-//
-//                    logToDebugger("Pipe Handler - Status updated to SAIL");
-//                }
-//                else if (command == "SET_DOCKED") {
-//                    if (g_mainWindow) {
-//                        auto dispatcher = g_mainWindow.DispatcherQueue();
-//                        dispatcher.TryEnqueue([]()
-//                            {
-//                                auto impl = winrt::get_self<winrt::NMEA_Relay_NT::implementation::MainWindow>(g_mainWindow);
-//                                impl->DockedButton_Click(nullptr, nullptr);
-//                            });
-//                    }
-//
-//                    logToDebugger("Pipe Handler - Status updated to DOCKED");
-//                }
-//                else if (command == "SET_ANCHOR") {
-//                    if (g_mainWindow) {
-//                        auto dispatcher = g_mainWindow.DispatcherQueue();
-//                        dispatcher.TryEnqueue([]()
-//                            {
-//                                auto impl = winrt::get_self<winrt::NMEA_Relay_NT::implementation::MainWindow>(g_mainWindow);
-//                                impl->AnchorButton_Click(nullptr, nullptr);
-//                            });
-//                    }
-//
-//                    logToDebugger("Pipe Handler - Status updated to ANCHOR");
-//                }
-//                else if (command == "SET_ENGINESAIL") {
-//                    if (g_mainWindow) {
-//                        auto dispatcher = g_mainWindow.DispatcherQueue();
-//                        dispatcher.TryEnqueue([]()
-//                            {
-//                                auto impl = winrt::get_self<winrt::NMEA_Relay_NT::implementation::MainWindow>(g_mainWindow);
-//                                impl->SailAndEngineButton_Click(nullptr, nullptr);
-//                            });
-//                    }
-//
-//                    logToDebugger("Pipe Handler - Status updated to ENGINESAIL");
-//                }
-//                else {
-//                    std::string unknown = "UNKNOWN COMMAND";
-//                    WriteFile(hPipe, unknown.c_str(), static_cast<DWORD>(unknown.size()), &bytesWritten, NULL);
-//                    logToDebugger("Pipe Handler - Unknown command.");
-//                }
-//
-//                FlushFileBuffers(hPipe);
-//                DisconnectNamedPipe(hPipe);
-//                CloseHandle(hPipe);
-//                }).detach(); // 🚀 Launch and detach the lambda thread
-//        }
-//        else {
-//            CloseHandle(hPipe);
-//        }
-//    }
-//
-//    g_loggerEvents.LogMessage("thread PipeServerLoopThread ended", 2);
-//    logToDebugger("thread PipeServerLoopThread ended");
-//}
 
 void PipeServerLoop()
 {
@@ -571,6 +393,7 @@ void appPulse()
         lock.unlock();
         GPSData.CheckDataAge();
         GPSData.CalculateAndUpdateDistance();
+        GPSData.UpdateHistory();
         lock.lock();
 
         //std::this_thread::sleep_for(std::chrono::milliseconds(APP_PULSE_WAITING_MSEC));

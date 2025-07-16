@@ -25,6 +25,8 @@ class gpsData
         int MaxDataAgeSeconds = 0;
         int main_data_age_seconds = 0;
 
+        std::vector<std::pair<double, double>> gpsHistory;
+
         struct pos_data_struct {
             double utc;
             double lat;
@@ -133,6 +135,8 @@ public:
     std::string GetFullStatusReport();
     void CalculateAndUpdateDistance();
     void ResetTripDist();
+    void UpdateHistory();
+    const std::vector<std::pair<double, double>>& GetGpsHistory();
     int CalculateTimeDifferenceInSeconds();
     double GetCurrentUtcTimeAsDouble();
 };

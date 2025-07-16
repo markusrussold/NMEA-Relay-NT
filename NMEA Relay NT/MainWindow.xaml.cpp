@@ -738,12 +738,35 @@ namespace winrt::NMEA_Relay_NT::implementation
         }
     }
 
-    void winrt::NMEA_Relay_NT::implementation::MainWindow::AnchorWatch_Click(
-        winrt::Windows::Foundation::IInspectable const&,
-        winrt::Microsoft::UI::Xaml::RoutedEventArgs const&)
+    //void winrt::NMEA_Relay_NT::implementation::MainWindow::AnchorWatch_Click(
+    //    winrt::Windows::Foundation::IInspectable const&,
+    //    winrt::Microsoft::UI::Xaml::RoutedEventArgs const&)
+    //{
+    //    winrt::NMEA_Relay_NT::AnchorWatchWindow window;
+    //    window.Activate();
+    //}
+
+    void MainWindow::AnchorWatch_Click(winrt::Windows::Foundation::IInspectable const&, winrt::Microsoft::UI::Xaml::RoutedEventArgs const&)
     {
-        winrt::NMEA_Relay_NT::AnchorWatchWindow window;
-        window.Activate();
+        if (g_anchorWatchWindow == nullptr)
+        {
+            g_anchorWatchWindow = winrt::NMEA_Relay_NT::AnchorWatchWindow();
+            g_anchorWatchWindow.Activate();
+        }
+        else
+        {
+            HWND hwnd{};
+            auto windowNative = g_anchorWatchWindow.try_as<::IWindowNative>();
+            if (windowNative)
+            {
+                windowNative->get_WindowHandle(&hwnd);
+                if (hwnd)
+                {
+                    SetForegroundWindow(hwnd);
+                }
+            }
+        }
     }
+
 
 }

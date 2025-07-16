@@ -10,7 +10,7 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <Grid Grid.Row="0">
+        <Grid x:Name="SecondGrid" Grid.Row="0" Background="Black">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
@@ -25,12 +25,52 @@
 
             <!-- Control Area -->
             <StackPanel Grid.Column="1" Margin="20" VerticalAlignment="Top" Spacing="10">
-                <TextBlock Text="Radius (1m - 1000m):"/>
-                <TextBox x:Name="RadiusInput" Width="80" TextChanged="RadiusInput_TextChanged"/>
-                <TextBlock x:Name="RadiusLabel" Text="Aktueller Radius: "/>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
 
-                <TextBlock Text="Distanz zum Ursprung:"/>
-                <TextBlock x:Name="DistanceToOriginTextBox" Width="80"/>
+                    <Grid Margin="00">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Text="Alarm:" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <ToggleSwitch x:Name="AlarmToggleSwitch"
+                              Grid.Column="1"
+                              OnContent="Aktiviert"
+                              OffContent="Nicht aktiviert"
+                              Toggled="AlarmToggleSwitch_Toggled"/>
+                    </Grid>
+
+
+                    <!-- Radius Input -->
+                    <TextBlock Text="Radius (1m - 1000m):"
+               Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBox x:Name="RadiusInput"
+             Width="80"
+             Grid.Row="1" Grid.Column="1"
+             TextChanged="RadiusInput_TextChanged"/>
+
+                    <!-- Distance to Anchor -->
+                    <TextBlock Text="Distanz zum Anker (roter Punkt):"
+               Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" Margin="0,5,8,0"/>
+                    <TextBlock x:Name="DistanceToOriginTextBox"
+               Grid.Row="3" Grid.Column="1"
+               VerticalAlignment="Center"/>
+                </Grid>
+
+                <Button Content="Teste Alarm"
+                    Click="TestAlarm_Click"
+                    HorizontalAlignment="Stretch"/>
 
                 <Border BorderBrush="Gray" BorderThickness="1" Padding="10" Margin="0,10,0,0">
                     <StackPanel Spacing="8">
@@ -40,15 +80,56 @@
                                 Click="ResetAnchorPosition_Click"
                                 HorizontalAlignment="Stretch"/>
 
-                        <TextBlock Text="Offset Richtung (Grad):"/>
-                        <TextBox x:Name="OffsetBearingInput" Width="80"/>
+                        <Button Content="Anker auf mittlere Position"
+                                Click="ResetAnchorPositionMedian_Click"
+                                HorizontalAlignment="Stretch"/>
 
-                        <TextBlock Text="Offset Distanz (m):"/>
-                        <TextBox x:Name="OffsetDistanceInput" Width="80"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
 
-                        <Button Content="Anker verschieben"
+                            <TextBlock Text="Offset Richtung (Grad):" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBox x:Name="OffsetBearingInput" Width="80" Grid.Column="1"/>
+                        </Grid>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Text="Offset Distanz (m):" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBox x:Name="OffsetDistanceInput" Width="80" Grid.Column="1"/>
+                        </Grid>
+
+
+                        <Button Content="Anker verschieben von aktueller GPS-Position"
                                 Click="MoveAnchorWithOffset_Click"
                                 HorizontalAlignment="Stretch"/>
+
+                        <Button Content="Anker verschieben von mittlerer GPS-Position"
+                                Click="MoveAnchorWithOffsetMedian_Click"
+                                HorizontalAlignment="Stretch"/>
+
+                        <Button Content="Anker verschieben von aktueller Anker-Position"
+                                Click="MoveAnchorWithOffsetFromAnchor_Click"
+                                HorizontalAlignment="Stretch"/>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0" Text="Ankerposition:"/>
+                            <TextBlock Grid.Column="1" x:Name="AnchorLatLonText"
+                                Text=""
+                                Tapped="AnchorLatLonText_Tapped"/>
+                        </Grid>
+
+
                     </StackPanel>
                 </Border>
             </StackPanel>
@@ -56,11 +137,15 @@
 
         <!-- Footer -->
         <TextBlock x:Name="FooterTextBlock"
-                   Grid.Row="1"
-                   Text=""
-                   Foreground="White"
-                   FontSize="12"
-                   Margin="5"/>
+           Grid.Row="1"
+           Text=""
+           Foreground="White"
+           FontSize="36"
+           FontWeight="Bold"
+           HorizontalAlignment="Center"
+           VerticalAlignment="Center"
+           TextAlignment="Center"
+           Margin="5"/>
 
     </Grid>
 </Window>

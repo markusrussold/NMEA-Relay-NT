@@ -21,17 +21,28 @@ namespace winrt::NMEA_Relay_NT::implementation
         double m_prevScreenY = 0;
         bool m_isClosed = false;
         bool m_alarmActive = false;
+        bool m_alarmArmed = false;
         winrt::Windows::System::Threading::ThreadPoolTimer m_alarmTimer{ nullptr };
         winrt::Windows::System::Threading::ThreadPoolTimer m_refreshTimer{ nullptr };
+        winrt::Microsoft::UI::Xaml::Shapes::Ellipse m_latestPositionDot{ nullptr };
 
         void StartAlarm();
         void StopAlarm();
         void OnAlarmBlinkTick(winrt::Windows::System::Threading::ThreadPoolTimer const&);
         void PlayAlarmSound();
 
+        std::thread m_alarmSoundThread;
+        std::atomic<bool> m_alarmSoundThreadRunning = false;
+
         AnchorWatchWindow()
         {
             InitializeComponent();
+
+            HWND hwnd = GetWindowHandle();
+
+            // Apply style changes immediately
+            ::SetWindowPos(hwnd, nullptr, 100, 100, 1200, 900,
+                SWP_NOMOVE | SWP_NOZORDER | SWP_FRAMECHANGED);
 
             // Initialize anchor position from GPSData
             m_anchorLat = GPSData.GetLatitude();
@@ -41,6 +52,8 @@ namespace winrt::NMEA_Relay_NT::implementation
             // Initial previous point is also the anchor
             m_prevLat = m_anchorLat;
             m_prevLon = m_anchorLon;
+
+            m_gpsHistory = GPSData.GetGpsHistory();
 
             AnchorCanvas().LayoutUpdated([this](auto&&, auto&&)
                 {
@@ -60,9 +73,11 @@ namespace winrt::NMEA_Relay_NT::implementation
                     m_isClosed = true;
                     if (m_refreshTimer) m_refreshTimer.Cancel();
                     if (m_alarmTimer) m_alarmTimer.Cancel();
+                    g_anchorWatchWindow = nullptr;
             });
 
             AnchorCanvas().SizeChanged({ this, &AnchorWatchWindow::OnCanvasSizeChanged });
+            UpdateAnchorLatLonText();
         }
 
         int32_t MyProperty();
@@ -81,6 +96,22 @@ namespace winrt::NMEA_Relay_NT::implementation
         void ResetAnchorPosition_Click(winrt::Windows::Foundation::IInspectable const&, winrt::Microsoft::UI::Xaml::RoutedEventArgs const&);
         void MoveAnchorWithOffset_Click(winrt::Windows::Foundation::IInspectable const&, winrt::Microsoft::UI::Xaml::RoutedEventArgs const&);
 
+        void MoveAnchorWithOffsetMedian_Click(winrt::Windows::Foundation::IInspectable const&, winrt::Microsoft::UI::Xaml::RoutedEventArgs const&);
+
+        void MoveAnchorWithOffsetFromAnchor_Click(winrt::Windows::Foundation::IInspectable const&, winrt::Microsoft::UI::Xaml::RoutedEventArgs const&);
+
+        void AlarmToggleSwitch_Toggled(winrt::Windows::Foundation::IInspectable const& sender, winrt::Microsoft::UI::Xaml::RoutedEventArgs const& e);
+
+        void SetFooterText(winrt::hstring const& text);
+
+        std::pair<double, double> CalculateGpsHistoryCenter() const;
+
+        void ResetAnchorPositionMedian_Click(winrt::Windows::Foundation::IInspectable const&, winrt::Microsoft::UI::Xaml::RoutedEventArgs const&);
+
+        void TestAlarm_Click(winrt::Windows::Foundation::IInspectable const&, winrt::Microsoft::UI::Xaml::RoutedEventArgs const&);
+
+        void AnchorLatLonText_Tapped(winrt::Windows::Foundation::IInspectable const&, winrt::Microsoft::UI::Xaml::Input::TappedRoutedEventArgs const&);
+
         void DrawAnchorAndRadius(int radiusMeters);
         void DrawAnchorVisuals();
         void DrawGpsPosition(double lat, double lon);
@@ -88,6 +119,9 @@ namespace winrt::NMEA_Relay_NT::implementation
         std::vector<std::pair<double, double>> m_gpsHistory; // lat, lon pairs
         void RedrawAllGpsPoints();
         std::pair<double, double> ConvertLatLonToScreen(double lat, double lon);
+
+        void UpdateAnchorLatLonText();
+        HWND GetWindowHandle();
     };
 }
 

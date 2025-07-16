@@ -548,3 +548,14 @@ void gpsData::ResetTripDist() {
     old_lon = 0;
     SetTripDist(0.0);
 }
+
+void gpsData::UpdateHistory() {
+    if (GetDataReliability()) {
+        gpsHistory.emplace_back(GetLatitude(), GetLongitude());
+    }
+}
+
+const std::vector<std::pair<double, double>>& gpsData::GetGpsHistory()
+{
+    return gpsHistory;
+}

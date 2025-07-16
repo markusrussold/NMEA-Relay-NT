@@ -30,3 +30,5 @@ extern gpsData GPSData;
 
 class ReportQueue;
 extern ReportQueue reportQueue;
+
+extern winrt::NMEA_Relay_NT::AnchorWatchWindow g_anchorWatchWindow;

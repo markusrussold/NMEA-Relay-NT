@@ -229,6 +229,8 @@ namespace winrt::NMEA_Relay_NT::implementation
 
         if (m_alarmTimer) m_alarmTimer.Cancel();
 
+        if (m_isClosed) return;
+
         if (DispatcherQueue())
         {
             DispatcherQueue().TryEnqueue([this]()
@@ -245,19 +247,26 @@ namespace winrt::NMEA_Relay_NT::implementation
 
     void AnchorWatchWindow::OnAlarmBlinkTick(ThreadPoolTimer const&)
     {
-        if (DispatcherQueue())
-        {
-            DispatcherQueue().TryEnqueue([this]()
-                {
-                    static bool isRed = false;
-                    isRed = !isRed;
-                    if (MainGrid() && SecondGrid() && AnchorCanvas())
+        if (m_isClosed) return;
+
+        try {
+            if (DispatcherQueue())
+            {
+                DispatcherQueue().TryEnqueue([this]()
                     {
-                        MainGrid().Background(SolidColorBrush(isRed ? Windows::UI::Colors::Red() : Windows::UI::Colors::Black()));
-                        SecondGrid().Background(SolidColorBrush(isRed ? Windows::UI::Colors::Red() : Windows::UI::Colors::Black()));
-                        AnchorCanvas().Background(SolidColorBrush(isRed ? Windows::UI::Colors::Red() : Windows::UI::Colors::Black()));
-                    };
-                });
+                        static bool isRed = false;
+                        isRed = !isRed;
+                        if (MainGrid() && SecondGrid() && AnchorCanvas())
+                        {
+                            MainGrid().Background(SolidColorBrush(isRed ? Windows::UI::Colors::Red() : Windows::UI::Colors::Black()));
+                            SecondGrid().Background(SolidColorBrush(isRed ? Windows::UI::Colors::Red() : Windows::UI::Colors::Black()));
+                            AnchorCanvas().Background(SolidColorBrush(isRed ? Windows::UI::Colors::Red() : Windows::UI::Colors::Black()));
+                        };
+                    });
+            }
+        }
+        catch (...) {
+            g_loggerEvents.LogMessage("Exception in OnAlarmBlinkTick");
         }
     }
 
@@ -268,13 +277,18 @@ namespace winrt::NMEA_Relay_NT::implementation
         m_alarmSoundThreadRunning = true;
         m_alarmSoundThread = std::thread([this]()
             {
-                while (m_alarmActive && m_alarmSoundThreadRunning)
-                {
-                    Beep(1500, 200);   // Low tone
-                    if (!m_alarmActive || !m_alarmSoundThreadRunning) break;
-                    Beep(1000, 200);  // High tone
-                    if (!m_alarmActive || !m_alarmSoundThreadRunning) break;
-                    Beep(800, 200);   // Low tone
+                try {
+                    while (m_alarmActive && m_alarmSoundThreadRunning)
+                    {
+                        Beep(1500, 200);   // Low tone
+                        if (!m_alarmActive || !m_alarmSoundThreadRunning) break;
+                        Beep(1000, 200);  // High tone
+                        if (!m_alarmActive || !m_alarmSoundThreadRunning) break;
+                        Beep(800, 200);   // Low tone
+                    }
+                }
+                catch (...) {
+                    g_loggerEvents.LogMessage("Exception in PlayAlarmSound");
                 }
             });
     }
@@ -312,38 +326,65 @@ namespace winrt::NMEA_Relay_NT::implementation
     {
         if (m_isClosed) return;
 
-        if (auto mainWindow = g_mainWindowWeakRef.get())
-        {
-            if (GPSData.GetDataReliability())
+        try {
+            if (auto mainWindow = g_mainWindowWeakRef.get())
             {
-                double currentLat = GPSData.GetLatitude();
-                double currentLon = GPSData.GetLongitude();
-
-                double distanceToOriginNm = CalculateDistanceNm(m_anchorLat, m_anchorLon, currentLat, currentLon);
-                double distanceToOriginMeters = distanceToOriginNm * 1852;
-
-                std::wstringstream ss;
-                ss << std::fixed << std::setprecision(1) << distanceToOriginMeters;
-                auto distanceText = winrt::hstring(ss.str()) + L" m";
-
-                if (DispatcherQueue())
+                if (GPSData.GetDataReliability())
                 {
-                    DispatcherQueue().TryEnqueue([this, currentLat, currentLon, distanceText]()
-                        {
-                            if (m_isClosed)
-                                return;
+                    double currentLat = GPSData.GetLatitude();
+                    double currentLon = GPSData.GetLongitude();
 
-                            if (DistanceToOriginTextBox())
+                    double distanceToOriginNm = CalculateDistanceNm(m_anchorLat, m_anchorLon, currentLat, currentLon);
+                    double distanceToOriginMeters = distanceToOriginNm * 1852;
+
+                    std::wstringstream ss;
+                    ss << std::fixed << std::setprecision(1) << distanceToOriginMeters;
+                    auto distanceText = winrt::hstring(ss.str()) + L" m";
+
+                    if (m_isClosed) return;
+
+                    if (DispatcherQueue())
+                    {
+                        DispatcherQueue().TryEnqueue([this, currentLat, currentLon, distanceText]()
                             {
-                                DistanceToOriginTextBox().Text(distanceText);
+                                if (m_isClosed)
+                                    return;
+
+                                if (DistanceToOriginTextBox())
+                                {
+                                    DistanceToOriginTextBox().Text(distanceText);
+                                }
+
+                                DrawGpsPosition(currentLat, currentLon);
+                            });
+                    }
+
+                    if (distanceToOriginMeters > m_currentRadiusMeters)
+                    {
+                        if (m_alarmArmed) {
+                            if (!m_alarmActive)
+                            {
+                                StartAlarm();
                             }
+                            else
+                            {
+                                PlayAlarmSound();  // keep playing sound
+                            }
+                        }
 
-                            DrawGpsPosition(currentLat, currentLon);
-                        });
+                        SetFooterText(L"Aktuelle Position zu weit vom Anker entfernt!!");
+                    }
+                    else
+                    {
+                        if (m_alarmActive)
+                        {
+                            StopAlarm();
+                        }
+
+                        SetFooterText(L"");
+                    }
                 }
-
-                if (distanceToOriginMeters > m_currentRadiusMeters)
-                {
+                else {
                     if (m_alarmArmed) {
                         if (!m_alarmActive)
                         {
@@ -355,16 +396,7 @@ namespace winrt::NMEA_Relay_NT::implementation
                         }
                     }
 
-                    SetFooterText(L"Aktuelle Position zu weit vom Anker entfernt!!");
-                }
-                else
-                {
-                    if (m_alarmActive)
-                    {
-                        StopAlarm();
-                    }
-
-                    SetFooterText(L"");
+                    SetFooterText(L"Vorsicht, aktuell keine gültigen Positionsdaten verfügbar!");
                 }
             }
             else {
@@ -379,22 +411,11 @@ namespace winrt::NMEA_Relay_NT::implementation
                     }
                 }
 
-                SetFooterText(L"Vorsicht, aktuell keine gültigen Positionsdaten verfügbar!");
+                SetFooterText(L"Hauptfenster wurde geschlossen und es gibt keine Positionsdaten mehr!");
             }
         }
-        else {
-            if (m_alarmArmed) {
-                if (!m_alarmActive)
-                {
-                    StartAlarm();
-                }
-                else
-                {
-                    PlayAlarmSound();  // keep playing sound
-                }
-            }
-
-            SetFooterText(L"Hauptfenster wurde geschlossen und es gibt keine Positionsdaten mehr!");
+        catch (...) {
+            g_loggerEvents.LogMessage("Exception in OnGpsRefreshTimerTick");
         }
     }
 
@@ -537,13 +558,15 @@ namespace winrt::NMEA_Relay_NT::implementation
             if (m_isClosed || !DispatcherQueue())
                 return;
 
-            DispatcherQueue().TryEnqueue([this, text]()
-                {
-                    if (FooterTextBlock())
+            if (DispatcherQueue()) {
+                DispatcherQueue().TryEnqueue([this, text]()
                     {
-                        FooterTextBlock().Text(text);
-                    }
-                });
+                        if (FooterTextBlock())
+                        {
+                            FooterTextBlock().Text(text);
+                        }
+                    });
+            }
     }
 
     std::pair<double, double> AnchorWatchWindow::CalculateGpsHistoryCenter() const
@@ -593,7 +616,6 @@ namespace winrt::NMEA_Relay_NT::implementation
             DrawAnchorAndRadius(m_currentRadiusMeters);
         }
     }
-
 
     void AnchorWatchWindow::AnchorLatLonText_Tapped(
         winrt::Windows::Foundation::IInspectable const& /*sender*/,

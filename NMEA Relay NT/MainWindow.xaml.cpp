@@ -87,6 +87,14 @@ namespace winrt::NMEA_Relay_NT::implementation
         AnchorButton().Background(SolidColorBrush(Colors::LightGreen()));
 
         RootGrid().RequestedTheme(ElementTheme::Dark);
+
+        g_mainWindowWeakRef = this->get_weak();
+
+        this->Closed([=](auto&&, auto&&)
+            {
+                g_mainWindowWeakRef = nullptr;
+            });
+
     }
 
     HWND MainWindow::GetWindowHandle()

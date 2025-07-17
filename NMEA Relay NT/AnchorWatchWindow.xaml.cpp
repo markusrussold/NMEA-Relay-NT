@@ -312,36 +312,62 @@ namespace winrt::NMEA_Relay_NT::implementation
     {
         if (m_isClosed) return;
 
-        if (GPSData.GetDataReliability())
+        if (auto mainWindow = g_mainWindowWeakRef.get())
         {
-            double currentLat = GPSData.GetLatitude();
-            double currentLon = GPSData.GetLongitude();
-
-            double distanceToOriginNm = CalculateDistanceNm(m_anchorLat, m_anchorLon, currentLat, currentLon);
-            double distanceToOriginMeters = distanceToOriginNm * 1852;
-
-            std::wstringstream ss;
-            ss << std::fixed << std::setprecision(1) << distanceToOriginMeters;
-            auto distanceText = winrt::hstring(ss.str()) + L" m";
-
-            if (DispatcherQueue())
+            if (GPSData.GetDataReliability())
             {
-                DispatcherQueue().TryEnqueue([this, currentLat, currentLon, distanceText]()
-                    {
-                        if (m_isClosed)
-                            return;
+                double currentLat = GPSData.GetLatitude();
+                double currentLon = GPSData.GetLongitude();
 
-                        if (DistanceToOriginTextBox())
+                double distanceToOriginNm = CalculateDistanceNm(m_anchorLat, m_anchorLon, currentLat, currentLon);
+                double distanceToOriginMeters = distanceToOriginNm * 1852;
+
+                std::wstringstream ss;
+                ss << std::fixed << std::setprecision(1) << distanceToOriginMeters;
+                auto distanceText = winrt::hstring(ss.str()) + L" m";
+
+                if (DispatcherQueue())
+                {
+                    DispatcherQueue().TryEnqueue([this, currentLat, currentLon, distanceText]()
                         {
-                            DistanceToOriginTextBox().Text(distanceText);
+                            if (m_isClosed)
+                                return;
+
+                            if (DistanceToOriginTextBox())
+                            {
+                                DistanceToOriginTextBox().Text(distanceText);
+                            }
+
+                            DrawGpsPosition(currentLat, currentLon);
+                        });
+                }
+
+                if (distanceToOriginMeters > m_currentRadiusMeters)
+                {
+                    if (m_alarmArmed) {
+                        if (!m_alarmActive)
+                        {
+                            StartAlarm();
                         }
+                        else
+                        {
+                            PlayAlarmSound();  // keep playing sound
+                        }
+                    }
 
-                        DrawGpsPosition(currentLat, currentLon);
-                    });
+                    SetFooterText(L"Aktuelle Position zu weit vom Anker entfernt!!");
+                }
+                else
+                {
+                    if (m_alarmActive)
+                    {
+                        StopAlarm();
+                    }
+
+                    SetFooterText(L"");
+                }
             }
-
-            if (distanceToOriginMeters > m_currentRadiusMeters)
-            {
+            else {
                 if (m_alarmArmed) {
                     if (!m_alarmActive)
                     {
@@ -353,18 +379,10 @@ namespace winrt::NMEA_Relay_NT::implementation
                     }
                 }
 
-                SetFooterText(L"Aktuelle Position zu weit vom Anker entfernt!!");
+                SetFooterText(L"Vorsicht, aktuell keine gültigen Positionsdaten verfügbar!");
             }
-            else
-            {
-                if (m_alarmActive)
-                {
-                    StopAlarm();
-                }
-
-                SetFooterText(L"");
-            }
-        } else {
+        }
+        else {
             if (m_alarmArmed) {
                 if (!m_alarmActive)
                 {
@@ -376,7 +394,7 @@ namespace winrt::NMEA_Relay_NT::implementation
                 }
             }
 
-            SetFooterText(L"Vorsicht, aktuell keine gültigen Positionsdaten verfügbar!");
+            SetFooterText(L"Hauptfenster wurde geschlossen und es gibt keine Positionsdaten mehr!");
         }
     }
 
@@ -566,6 +584,17 @@ namespace winrt::NMEA_Relay_NT::implementation
         Beep(1000, 700);
     }
 
+    void AnchorWatchWindow::ResetTrack_Click(winrt::Windows::Foundation::IInspectable const&, winrt::Microsoft::UI::Xaml::RoutedEventArgs const&)
+    {
+        m_gpsHistory.clear();
+
+        if (AnchorCanvas())
+        {
+            DrawAnchorAndRadius(m_currentRadiusMeters);
+        }
+    }
+
+
     void AnchorWatchWindow::AnchorLatLonText_Tapped(
         winrt::Windows::Foundation::IInspectable const& /*sender*/,
         winrt::Microsoft::UI::Xaml::Input::TappedRoutedEventArgs const& /*e*/)
@@ -578,4 +607,40 @@ namespace winrt::NMEA_Relay_NT::implementation
         Clipboard::SetContent(dataPackage);
         Clipboard::Flush();
     }
+
+    void AnchorWatchWindow::OnMainGridDoubleTapped(winrt::Windows::Foundation::IInspectable const& sender,
+        winrt::Microsoft::UI::Xaml::Input::DoubleTappedRoutedEventArgs const& e)
+    {
+        auto point = e.GetPosition(AnchorCanvas());
+        double x = point.X;
+        double y = point.Y;
+
+        auto [lat, lon] = ConvertScreenToLatLon(x, y);
+
+        m_anchorLat = lat;
+        m_anchorLon = lon;
+        m_anchorLatCos = cos(m_anchorLat * M_PI / 180.0);
+
+        DrawAnchorAndRadius(m_currentRadiusMeters);
+        UpdateAnchorLatLonText();
+
+        SetFooterText(L"Ankerposition auf Doppelklick gesetzt.");
+    }
+
+    std::pair<double, double> AnchorWatchWindow::ConvertScreenToLatLon(double screenX, double screenY)
+    {
+        double canvasWidth = AnchorCanvas().ActualWidth();
+        double canvasHeight = AnchorCanvas().ActualHeight();
+        double centerX = canvasWidth / 2;
+        double centerY = canvasHeight / 2;
+
+        double deltaLonMeters = (screenX - centerX) / m_scale;
+        double deltaLatMeters = (centerY - screenY) / m_scale;
+
+        double deltaLat = deltaLatMeters / 111000;
+        double deltaLon = deltaLonMeters / (111000 * m_anchorLatCos);
+
+        return { m_anchorLat + deltaLat, m_anchorLon + deltaLon };
+    }
+
 }

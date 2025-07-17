@@ -76,11 +76,11 @@
                     <StackPanel Spacing="8">
                         <TextBlock Text="Ankerposition setzen" FontWeight="Bold"/>
 
-                        <Button Content="Anker auf aktuelle Position"
+                        <Button Content="Anker auf aktuelle GPS-Position"
                                 Click="ResetAnchorPosition_Click"
                                 HorizontalAlignment="Stretch"/>
 
-                        <Button Content="Anker auf mittlere Position"
+                        <Button Content="Anker auf mittlere GPS-Position"
                                 Click="ResetAnchorPositionMedian_Click"
                                 HorizontalAlignment="Stretch"/>
 
@@ -132,6 +132,11 @@
 
                     </StackPanel>
                 </Border>
+
+                <Button Content="Track zur&#x00FC;cksetzen"
+                    Click="ResetTrack_Click"
+                    HorizontalAlignment="Stretch"/>
+
             </StackPanel>
         </Grid>
 

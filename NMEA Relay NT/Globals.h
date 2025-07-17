@@ -32,3 +32,5 @@ class ReportQueue;
 extern ReportQueue reportQueue;
 
 extern winrt::NMEA_Relay_NT::AnchorWatchWindow g_anchorWatchWindow;
+
+inline winrt::weak_ref<winrt::NMEA_Relay_NT::implementation::MainWindow> g_mainWindowWeakRef{};

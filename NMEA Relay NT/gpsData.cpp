@@ -457,9 +457,9 @@ int gpsData::CalculateTimeDifferenceInSeconds() {
     int time_difference = current_total_seconds - gps_total_seconds;
 
     // Handle the situation where the time crosses midnight
-    if (time_difference < 0) {
-        time_difference += 24 * 3600; // Add 24 hours' worth of seconds
-    }
+    //if (time_difference < 0) {
+    //    time_difference += 24 * 3600; // Add 24 hours' worth of seconds
+    //}
 
     return time_difference;
 }

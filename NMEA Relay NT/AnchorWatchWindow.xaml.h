@@ -78,6 +78,8 @@ namespace winrt::NMEA_Relay_NT::implementation
 
             AnchorCanvas().SizeChanged({ this, &AnchorWatchWindow::OnCanvasSizeChanged });
             UpdateAnchorLatLonText();
+
+            MainGrid().DoubleTapped({ this, &AnchorWatchWindow::OnMainGridDoubleTapped });
         }
 
         int32_t MyProperty();
@@ -110,7 +112,13 @@ namespace winrt::NMEA_Relay_NT::implementation
 
         void TestAlarm_Click(winrt::Windows::Foundation::IInspectable const&, winrt::Microsoft::UI::Xaml::RoutedEventArgs const&);
 
+        void ResetTrack_Click(winrt::Windows::Foundation::IInspectable const&, winrt::Microsoft::UI::Xaml::RoutedEventArgs const&);
+
         void AnchorLatLonText_Tapped(winrt::Windows::Foundation::IInspectable const&, winrt::Microsoft::UI::Xaml::Input::TappedRoutedEventArgs const&);
+
+        void AnchorWatchWindow::OnMainGridDoubleTapped(winrt::Windows::Foundation::IInspectable const& sender, winrt::Microsoft::UI::Xaml::Input::DoubleTappedRoutedEventArgs const& e);
+
+        std::pair<double, double> ConvertScreenToLatLon(double screenX, double screenY);
 
         void DrawAnchorAndRadius(int radiusMeters);
         void DrawAnchorVisuals();
